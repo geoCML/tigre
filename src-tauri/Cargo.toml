@@ -38,3 +38,4 @@ gdal-sys = "0.10.0"
 martin = "0.14.2"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"
+tauri-plugin-dialog = "2"
