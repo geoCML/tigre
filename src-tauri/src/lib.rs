@@ -8,7 +8,7 @@ pub mod server;
 
 use crate::appstate::AppState;
 use crate::repl::{eval, read};
-use crate::db::get_as_json;
+use crate::db::{get_as_json, get_as_wkt};
 use postgres::{Client, NoTls};
 use std::string::String;
 use tokio::sync::Mutex;
@@ -29,7 +29,7 @@ pub async fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![read, eval, get_as_json])
+        .invoke_handler(tauri::generate_handler![read, eval, get_as_json, get_as_wkt])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

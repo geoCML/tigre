@@ -3,8 +3,46 @@ use crate::output::Output;
 use postgres::{Client, NoTls};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use tauri::{State, Manager};
+use tauri::{Emitter, State, Manager};
 
+
+#[tauri::command]
+pub async fn get_as_wkt(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -> Result<Vec<String>, ()> {
+    let state: State<'_, Mutex<AppState>> = app.app_handle().state();
+
+    let _ = state.lock().await.app_handle.emit("loading", 10);
+
+    if bb.len() != 2 {
+        let _ = state.lock().await.app_handle.emit("loading", 0);
+        panic!("Bounding box has fewer than 2 corners.");
+    }
+
+    let _ = state.lock().await.app_handle.emit("loading", 25);
+
+    let mut pgsql_client = match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
+        Ok(val) => val,
+        Err(_) => {
+            let _ = state.lock().await.app_handle.emit("loading", 0);
+            panic!("ERROR! Lost connection to the database.");
+        }
+    };
+
+    let wkt_result = pgsql_client.query(
+        format!("SELECT ST_AsText(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom)) FROM {}", bb[0][0], bb[0][1], bb[1][0], bb[1][1], table).as_str(),
+        &[],
+    );
+
+    let _ = state.lock().await.app_handle.emit("loading", 50);
+    let mut wkt_rows: Vec<String> = vec![];
+    for row in wkt_result.unwrap() {
+        for col in row.columns() {
+            wkt_rows.push(row.get::<&str, &str>(col.name()).to_string());
+        }
+    }
+
+    let _ = state.lock().await.app_handle.emit("loading", 0);
+    Ok(wkt_rows)
+}
 
 #[tauri::command]
 pub async fn get_as_json(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -> Result<String, ()> {
