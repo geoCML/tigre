@@ -68,7 +68,7 @@ function Map() {
   }, [vectorLayers, rasterLayers]);
 
   return (
-    <div id="map" className="position-absolute m-auto h-[90vh] w-full"></div>
+    <div id="map" className="position-absolute m-auto h-[86vh] w-full"></div>
   );
 }
 
