@@ -13,8 +13,8 @@ use std::io::BufRead;
 use std::path::Path;
 use std::ptr::{null, null_mut};
 use std::string::String;
-use tokio::sync::Mutex;
 use tauri::{Emitter, State};
+use tokio::sync::Mutex;
 
 pub async fn add_layer(
     ast: &HashMap<&str, Vec<&str>>,
@@ -160,7 +160,6 @@ pub async fn add_layer(
         return Ok(output);
     }
 
-
     let _ = state.app_handle.emit("loading", 60);
     // CREATE TABLE
     let create_layer_result = pgsql_client.execute(
@@ -213,7 +212,6 @@ pub async fn add_layer(
         }
     };
 
-
     let _ = state.app_handle.emit("loading", 90);
     // COPY FROM CSV -> NEW PGSQL TABLE
     let csv_file = File::open_buffered(format!("/tmp/{}.csv", name).as_str()).unwrap();
@@ -242,7 +240,7 @@ pub async fn add_layer(
             .map(|item| {
                 return format!("\'{}\'", item);
             })
-        .collect::<Vec<_>>()
+            .collect::<Vec<_>>()
             .join(", ");
 
         queries.push(format!(
@@ -254,9 +252,7 @@ pub async fn add_layer(
         ))
     }
 
-    let insert_result = pgsql_client.batch_execute(
-        queries.join(";").as_str()
-    );
+    let insert_result = pgsql_client.batch_execute(queries.join(";").as_str());
     match insert_result {
         Ok(_) => (),
         Err(ref err) => {
@@ -269,7 +265,6 @@ pub async fn add_layer(
         }
     }
 
-
     let _ = fs::remove_file(format!("/tmp/{}.csv", name));
     let _ = state.app_handle.emit("add-vector-layer", name);
     let _ = state.app_handle.emit("loading", 0);
@@ -277,7 +272,10 @@ pub async fn add_layer(
     Ok(output)
 }
 
-pub async fn add(ast: &HashMap<&str, Vec<&str>>, state: &State<'_, Mutex<AppState>>) -> Result<Output, ()> {
+pub async fn add(
+    ast: &HashMap<&str, Vec<&str>>,
+    state: &State<'_, Mutex<AppState>>,
+) -> Result<Output, ()> {
     let mut output = Output {
         errors: vec![],
         results: vec![],

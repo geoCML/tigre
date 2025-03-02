@@ -34,7 +34,7 @@ function App() {
                 <Map />
             </div>
         </div>
-        <form ref={replForm} onSubmit={async (event) => {
+        <form id="repl-form" ref={replForm} onSubmit={async (event) => {
             event.preventDefault();
             const cmd = replInput.current!.value.replaceAll("\n", "");
             if (cmd === "clear") {
@@ -59,7 +59,7 @@ function App() {
             replInput.current!.value = "";
             replInput.current!.innerText = "";
         }}>
-        <textarea autoComplete="off" placeholder="Press Enter/Return to Execute REPL Command" autoFocus onKeyDown={(event) => {
+        <textarea id="repl-input" autoComplete="off" placeholder="Press Enter/Return to Execute REPL Command" autoFocus onKeyDown={(event) => {
             if (event && event.key === "Enter")
                 replForm.current!.requestSubmit();
         }} ref={replInput} className="border-solid border-2 border-stone-800 w-full h-[5vh] bg-stone-300 text-black resize-none"></textarea>

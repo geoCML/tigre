@@ -5,8 +5,8 @@ use crate::output::Output;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::string::String;
-use tokio::sync::Mutex;
 use tauri::{Manager, State};
+use tokio::sync::Mutex;
 
 #[tauri::command]
 pub fn read(cmd: &str) -> HashMap<&str, Vec<String>> {
@@ -75,8 +75,7 @@ pub fn read(cmd: &str) -> HashMap<&str, Vec<String>> {
     ast
 }
 
-pub async fn foo() {
-}
+pub async fn foo() {}
 
 #[tauri::command]
 pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Result<String, ()> {
@@ -104,7 +103,7 @@ pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Resul
     }
 
     Ok(format!(
-            "{{ \"errors\": {:?}, \"results\": {:?} }}",
-            output.errors, output.results
+        "{{ \"errors\": {:?}, \"results\": {:?} }}",
+        output.errors, output.results
     ))
 }
