@@ -7,6 +7,7 @@ import { addVectorLayer } from "./map.slice";
 import { VectorLayer } from "./types/Layer.type";
 import { useDispatch } from "react-redux";
 import Map from "./components/Map";
+import ControlBar from "./components/ControlBar";
 import REPLHistoryItem from "./components/REPLHistoryItem";
 import LoadingBar from "./components/LoadingBar";
 
@@ -28,7 +29,10 @@ function App() {
             <div className="bg-stone-950 text-white overflow-y-auto">
                 { history.map((elem) => elem) }
             </div>
-            <Map />
+            <div className="grid grid-cols-1 grid-rows-[3vh_86vh]">
+                <ControlBar />
+                <Map />
+            </div>
         </div>
         <form ref={replForm} onSubmit={async (event) => {
             event.preventDefault();
