@@ -2,12 +2,15 @@ use crate::appstate::AppState;
 use crate::output::Output;
 use postgres::{Client, NoTls};
 use std::collections::HashMap;
+use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex;
-use tauri::{Emitter, State, Manager};
-
 
 #[tauri::command]
-pub async fn get_as_wkt(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -> Result<Vec<String>, ()> {
+pub async fn get_as_wkt(
+    table: &str,
+    bb: Vec<Vec<f32>>,
+    app: tauri::AppHandle,
+) -> Result<Vec<String>, ()> {
     let state: State<'_, Mutex<AppState>> = app.app_handle().state();
 
     let _ = state.lock().await.app_handle.emit("loading", 10);
@@ -19,16 +22,21 @@ pub async fn get_as_wkt(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -
 
     let _ = state.lock().await.app_handle.emit("loading", 25);
 
-    let mut pgsql_client = match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
-        Ok(val) => val,
-        Err(_) => {
-            let _ = state.lock().await.app_handle.emit("loading", 0);
-            panic!("ERROR! Lost connection to the database.");
-        }
-    };
+    let mut pgsql_client =
+        match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
+            Ok(val) => val,
+            Err(_) => {
+                let _ = state.lock().await.app_handle.emit("loading", 0);
+                panic!("ERROR! Lost connection to the database.");
+            }
+        };
 
     let wkt_result = pgsql_client.query(
-        format!("SELECT ST_AsText(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom)) FROM {}", bb[0][0], bb[0][1], bb[1][0], bb[1][1], table).as_str(),
+        format!(
+            "SELECT ST_AsText(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom)) FROM {}",
+            bb[0][0], bb[0][1], bb[1][0], bb[1][1], table
+        )
+        .as_str(),
         &[],
     );
 
@@ -45,18 +53,23 @@ pub async fn get_as_wkt(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -
 }
 
 #[tauri::command]
-pub async fn get_as_json(table: &str, bb: Vec<Vec<f32>>, app: tauri::AppHandle) -> Result<String, ()> {
+pub async fn get_as_json(
+    table: &str,
+    bb: Vec<Vec<f32>>,
+    app: tauri::AppHandle,
+) -> Result<String, ()> {
     if bb.len() != 2 {
         panic!("Bounding box has fewer than 2 corners.");
     }
 
     let state: State<'_, Mutex<AppState>> = app.app_handle().state();
-    let mut pgsql_client = match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
-        Ok(val) => val,
-        Err(_) => {
-            panic!("ERROR! Lost connection to the database.");
-        }
-    };
+    let mut pgsql_client =
+        match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
+            Ok(val) => val,
+            Err(_) => {
+                panic!("ERROR! Lost connection to the database.");
+            }
+        };
 
     let geojson_result = pgsql_client.query(
         format!("SELECT json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom))::json) FROM {}", bb[0][0], bb[0][1], bb[1][0], bb[1][1], table).as_str(),
@@ -109,7 +122,10 @@ async fn db_connect(
     Ok(output)
 }
 
-pub async fn db(ast: &HashMap<&str, Vec<&str>>, state: &State<'_, Mutex<AppState>>) -> Result<Output, ()> {
+pub async fn db(
+    ast: &HashMap<&str, Vec<&str>>,
+    state: &State<'_, Mutex<AppState>>,
+) -> Result<Output, ()> {
     let mut output = Output {
         errors: vec![],
         results: vec![],
@@ -130,7 +146,7 @@ pub async fn db(ast: &HashMap<&str, Vec<&str>>, state: &State<'_, Mutex<AppState
                 output
                     .results
                     .extend(vec![state.lock().await.pgsql_connection.clone()]);
-                }
+            }
             &_ => output
                 .errors
                 .push("ERROR! Found unknown argument.".to_string()),
