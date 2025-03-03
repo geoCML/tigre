@@ -3,7 +3,6 @@ import { useState } from "react";
 function DBConnectButton() {
     const [formVisible, setFormVisible] = useState(false);
 
-
     return (
         <div className="btn p-2 border border-solid border-stone-700 w-8">
             <div className="z-[999] rounded-md w-1/2 text-white p-5 absolute top-1/3 left-1/2 transform -translate-x-1/3 -translate-y-1/2 bg-stone-950 text-center opacity-90" style={{
@@ -18,7 +17,19 @@ function DBConnectButton() {
                         </svg>
                     </div>
                 </div>
-                <form className="grid grid-cols-1 grid-rows-2 justify-items-center">
+                <form className="grid grid-cols-1 grid-rows-2 justify-items-center" onSubmit={ (event) => {
+                    event.preventDefault();
+                    const username = (document.getElementById("db-connect-username") as HTMLInputElement).value;
+                    const password = (document.getElementById("db-connect-password") as HTMLInputElement).value;
+                    const host = (document.getElementById("db-connect-host") as HTMLInputElement).value;
+                    const port = (document.getElementById("db-connect-port") as HTMLInputElement).value;
+                    const db = (document.getElementById("db-connect-database") as HTMLInputElement).value;
+
+                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db connect 'postgresql://${username}:${password}@${host}:${port}/${db}'`;
+                    (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
+
+                    setFormVisible(false);
+                }}>
                     <div>
                         <label htmlFor="db-connect-username" className="text-stone-700">postgresql://</label>
                         <input id="db-connect-username" className="m-1 p-1 w-30 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="username" type="text"/>
