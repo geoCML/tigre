@@ -17,15 +17,16 @@ function DBConnectButton() {
                         </svg>
                     </div>
                 </div>
-                <form className="grid grid-cols-1 grid-rows-2 justify-items-center" onSubmit={ (event) => {
+                <form className="grid grid-cols-1 grid-rows-3 justify-items-center" onSubmit={ (event) => {
                     event.preventDefault();
                     const username = (document.getElementById("db-connect-username") as HTMLInputElement).value;
                     const password = (document.getElementById("db-connect-password") as HTMLInputElement).value;
                     const host = (document.getElementById("db-connect-host") as HTMLInputElement).value;
                     const port = (document.getElementById("db-connect-port") as HTMLInputElement).value;
                     const db = (document.getElementById("db-connect-database") as HTMLInputElement).value;
+                    const params = (document.getElementById("db-connect-optional-params") as HTMLInputElement).value;
 
-                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db connect 'postgresql://${username}:${password}@${host}:${port}/${db}'`;
+                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db connect 'postgresql://${username}:${password}@${host}:${port}/${db}?${params}'`;
                     (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
 
                     setFormVisible(false);
@@ -47,7 +48,9 @@ function DBConnectButton() {
                         <input id="db-connect-database" className="m-1 p-1 w-25 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="database" type="text"/>
                     </div>
 
-                    <input className="mt-5 p-1 w-1/4 bg-stone-300 text-black border-solid border-2 border-stone-800 hover:bg-stone-600 hover:text-white" value="Connect" type="submit"/>
+                    <input id="db-connect-optional-params" className="p-1 w-[90%] bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="optional parameters" type="text"/>
+
+                    <input className="mt-5 w-1/4 bg-stone-300 text-black border-solid border-2 border-stone-800 hover:bg-stone-600 hover:text-white" value="Connect" type="submit"/>
                 </form>
             </div>
 
