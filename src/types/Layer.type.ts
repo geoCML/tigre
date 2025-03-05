@@ -1,5 +1,6 @@
 export type VectorLayer = {
-    name: string
+    name: string,
+    visible: boolean
 }
 
 export type RasterLayer = {

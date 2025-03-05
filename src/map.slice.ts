@@ -10,21 +10,25 @@ type AddLayerAction = {
 export const MapSlice = createSlice({
   name: "Map",
   initialState: {
-    vectorLayers: [],
-    rasterLayers: [],
+    vectorLayers: {},
+    rasterLayers: {},
   },
 
   reducers: {
     addVectorLayer: (state: any, action: AddLayerAction) => {
-      state.vectorLayers.push(action.payload);
+      state.vectorLayers[action.payload.layer.name] = action.payload;
     },
 
     addRasterLayer: (state: any, action: AddLayerAction) => {
-      state.rasterLayers.push(action.payload);
+      state.rasterLayers[action.payload.layer.name] = action.payload;
+    },
+
+    toggleVectorLayerVisibility(state: any, action: { payload: string }) {
+      state.vectorLayers[action.payload].layer.visible = !state.vectorLayers[action.payload].layer.visible;
     },
 
     removeAllVectorLayers: (state: any) => {
-        state.vectorLayers = [];
+        state.vectorLayers = {};
     }
   },
 });
@@ -32,6 +36,7 @@ export const MapSlice = createSlice({
 export const {
     addVectorLayer,
     addRasterLayer,
+    toggleVectorLayerVisibility,
     removeAllVectorLayers
 } = MapSlice.actions;
 
