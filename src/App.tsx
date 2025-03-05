@@ -44,7 +44,8 @@ function App() {
                 invoke<string>("eval", { ast: readResult }).then((result) => {
                     listen<string>('add-vector-layer', (event) => {
                         const layer: VectorLayer = {
-                            name: event.payload
+                            name: event.payload,
+                            visible: true
                         }
                         dispatch(addVectorLayer({
                             layer

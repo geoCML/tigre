@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { parse } from "wkt";
-import { VectorLayer } from "../types/Layer.type";
+import { toggleVectorLayerVisibility } from "../map.slice"
 import L from "leaflet";
 
 function Map() {
   let map = useRef<L.Map>(undefined);
+  const dispatch = useDispatch();
   const [redrawing, setRedrawing] = useState(false);
   const [layersPaneVisible, setLayersPaneVisible] = useState(false);
   const vectorLayers = useSelector((state: any) => state.map.vectorLayers);
@@ -18,11 +19,10 @@ function Map() {
   }
 
   function redraw() {
-      if (redrawing || !map.current)
+      if (!map.current)
           return
 
       emit("loading", 75);
-      setRedrawing(true);
       map.current!.eachLayer((map_layer) => {
           map.current!.removeLayer(map_layer)
       });
@@ -37,10 +37,14 @@ function Map() {
       emit("loading", 90);
 
       const geomPromises = []
-      for (const lyr of vectorLayers) {
-          const bounds = map.current!.getBounds()
+
+      for (const lyr of Object.keys(vectorLayers)) {
+          if (!vectorLayers[lyr].layer.visible)
+            continue;
+
+          const bounds = map.current!.getBounds();
           geomPromises.push(invoke<string[]>("get_as_wkt", {
-              table: lyr.layer.name,
+              table: vectorLayers[lyr].layer.name,
               bb: [[bounds.getEast(), bounds.getSouth()], [bounds.getWest(), bounds.getNorth()]]}
           ).then((result) => {
               result.forEach((geom) => {
@@ -56,21 +60,27 @@ function Map() {
   }
 
   useEffect(() => {
+    if (redrawing)
+      redraw()
+  }, [redrawing])
+
+  useEffect(() => {
       if (!map.current) {
-          map.current = L.map("map", { renderer: new L.Canvas(), fadeAnimation: false });
+          map.current = L.map("map", { renderer: new L.Canvas(), fadeAnimation: false, zoomAnimation: true, zoomSnap: 0.85 });
+
           map.current!.setView([0, 0], 2);
-          redraw();
+          setRedrawing(true);
       }
 
-      map.current!.addEventListener("zoomend", () => {
-          redraw();
-      }, { once: true });
+      map.current.on("zoomend", () => {
+          setRedrawing(true);
+      });
 
-      map.current!.addEventListener("dragend", () => {
-          redraw();
-      }, { once: true });
+      map.current.on("dragend", () => {
+          setRedrawing(true);
+      });
 
-      redraw();
+      setRedrawing(true);
   }, [vectorLayers, rasterLayers]);
 
   return (
@@ -94,24 +104,24 @@ function Map() {
           }}>
               <h1 className="text-xl mb-2 p-2">Layers</h1>
               <table className="w-full">
-                {vectorLayers.map((lyr: { layer: VectorLayer }) => {
+                {Object.keys(vectorLayers).map((lyr: string) => {
                     return (
                     <tr className="border-solid border-1 border-stone-200">
                         <input
                             className="ml-4"
                             type="checkbox"
-                            id={lyr.layer.name}
+                            id={vectorLayers[lyr].layer.name}
                             value=""
-                            checked={true}
-                            onClick={() => {
-                            //dispatch(toggleLayer(layer.name));
-                          }}
+                            checked={vectorLayers[lyr].layer.visible}
+                            onChange={() => {
+                              dispatch(toggleVectorLayerVisibility(vectorLayers[lyr].layer.name));
+                            }}
                         />
                         <label
-                          htmlFor={lyr.layer.name}
+                          htmlFor={vectorLayers[lyr].layer.name}
                           className="pl-2"
                         >
-                       {lyr.layer.name}
+                       {vectorLayers[lyr].layer.name}
                         </label>
                       </tr>
                     );
