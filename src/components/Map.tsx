@@ -69,16 +69,18 @@ function Map() {
           map.current = L.map("map", { renderer: new L.Canvas(), fadeAnimation: false, zoomAnimation: true, zoomSnap: 0.85 });
 
           map.current!.setView([0, 0], 2);
+
+          map.current.on("zoomend", () => {
+              setRedrawing(true);
+          });
+
+          map.current.on("dragend", () => {
+              setRedrawing(true);
+          });
+
           setRedrawing(true);
       }
 
-      map.current.on("zoomend", () => {
-          setRedrawing(true);
-      });
-
-      map.current.on("dragend", () => {
-          setRedrawing(true);
-      });
 
       setRedrawing(true);
   }, [vectorLayers, rasterLayers]);
