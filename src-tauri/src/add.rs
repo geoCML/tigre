@@ -180,7 +180,6 @@ pub async fn add_layer(
             output.errors.push(err.to_string());
 
             let _ = state.app_handle.emit("loading", 0);
-            let _ = state.app_handle.emit("add-vector-layer", &name);
             let _ = fs::remove_file(format!("/tmp/{}.csv", &name));
             return Ok(output);
         }
@@ -266,7 +265,7 @@ pub async fn add_layer(
     }
 
     let _ = fs::remove_file(format!("/tmp/{}.csv", name));
-    let _ = state.app_handle.emit("add-vector-layer", name);
+    let _ = state.app_handle.emit("add-vector-layer", [name, "public".to_string()]);
     let _ = state.app_handle.emit("loading", 0);
 
     Ok(output)

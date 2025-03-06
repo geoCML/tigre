@@ -115,12 +115,12 @@ async fn db_connect(
 
     match client {
         Ok(mut val) => {
-            let tables_result = &val.query("SELECT table_name FROM information_schema.tables WHERE table_schema != 'pg_catalog' AND table_schema != 'information_schema'", &[]);
+            let tables_result = &val.query("SELECT table_name, table_schema FROM information_schema.tables WHERE table_schema != 'pg_catalog' AND table_schema != 'information_schema'", &[]);
             match tables_result {
                 Ok(val) => {
                     if !val.is_empty() {
                         val.iter().for_each(|row| {
-                            let _ = &state.app_handle.emit("add-vector-layer", row.get::<usize, &str>(0));
+                            let _ = &state.app_handle.emit("add-vector-layer", [row.get::<usize, &str>(0), row.get::<usize, &str>(1)]);
                         });
                     }
                 },

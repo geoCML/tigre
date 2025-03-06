@@ -25,7 +25,8 @@ function App() {
 
     listen<string>('add-vector-layer', (event) => {
         const layer: VectorLayer = {
-            name: event.payload,
+            name: event.payload[0],
+            schema: event.payload[1],
             visible: true
         }
         dispatch(addVectorLayer({
