@@ -108,6 +108,7 @@ async fn db_connect(
     }
 
     let mut state = state.lock().await;
+    let _ = &state.app_handle.emit("wipe-layers", true);
 
     state.pgsql_connection = ast["args"][1].to_string();
     let client = Client::connect(state.pgsql_connection.as_str(), NoTls);
