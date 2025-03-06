@@ -31,6 +31,7 @@ pub async fn get_as_wkt(
             }
         };
 
+    let mut wkt_rows: Vec<String> = vec![];
     let wkt_result = pgsql_client.query(
         format!(
             "SELECT ST_AsText(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom)) FROM {}",
@@ -41,11 +42,15 @@ pub async fn get_as_wkt(
     );
 
     let _ = state.lock().await.app_handle.emit("loading", 50);
-    let mut wkt_rows: Vec<String> = vec![];
-    for row in wkt_result.unwrap() {
-        for col in row.columns() {
-            wkt_rows.push(row.get::<&str, &str>(col.name()).to_string());
-        }
+    match wkt_result {
+        Ok(val) => {
+            for row in val {
+                for col in row.columns() {
+                    wkt_rows.push(row.get::<&str, &str>(col.name()).to_string());
+                }
+            }
+        },
+        Err(_) => ()
     }
 
     let _ = state.lock().await.app_handle.emit("loading", 0);
@@ -105,10 +110,23 @@ async fn db_connect(
     let mut state = state.lock().await;
 
     state.pgsql_connection = ast["args"][1].to_string();
-    state.pgsql_client = Client::connect(state.pgsql_connection.as_str(), NoTls);
+    let client = Client::connect(state.pgsql_connection.as_str(), NoTls);
 
-    match &state.pgsql_client {
-        Ok(_) => {
+    match client {
+        Ok(mut val) => {
+            let tables_result = &val.query("SELECT table_name FROM information_schema.tables WHERE table_schema != 'pg_catalog' AND table_schema != 'information_schema'", &[]);
+            match tables_result {
+                Ok(val) => {
+                    if !val.is_empty() {
+                        val.iter().for_each(|row| {
+                            let _ = &state.app_handle.emit("add-vector-layer", row.get::<usize, &str>(0));
+                        });
+                    }
+                },
+                Err(_) => {
+                    output.errors.push("ERROR! Failed to load layers from database.".to_string());
+                }
+            }
             output.results.push("Connected to database".to_string());
         }
         Err(_) => {

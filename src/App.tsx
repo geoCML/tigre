@@ -23,6 +23,16 @@ function App() {
     let replInput = useRef<HTMLTextAreaElement>(null);
     let replForm = useRef<HTMLFormElement>(null);
 
+    listen<string>('add-vector-layer', (event) => {
+        const layer: VectorLayer = {
+            name: event.payload,
+            visible: true
+        }
+        dispatch(addVectorLayer({
+            layer
+        }));
+    });
+
     return (
       <main>
         <div className="w-full h-[90vh] grid grid-cols-[20%_80%] grid-rows-1">
@@ -42,16 +52,6 @@ function App() {
             } else {
                 const readResult = await invoke<Record<string, string[]>>("read", { cmd });
                 invoke<string>("eval", { ast: readResult }).then((result) => {
-                    listen<string>('add-vector-layer', (event) => {
-                        const layer: VectorLayer = {
-                            name: event.payload,
-                            visible: true
-                        }
-                        dispatch(addVectorLayer({
-                            layer
-                        }));
-                    });
-
                     const evalResult = JSON.parse(result) as Output;
                     setHistory([...history, <REPLHistoryItem cmd={cmd} output={evalResult} forceMessage={false}/>]);
                 });
