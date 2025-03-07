@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { parse } from "wkt";
 import { toggleVectorLayerVisibility } from "../map.slice"
+import LayerPaneItem from "./LayerPaneItem";
 import L from "leaflet";
 
 function Map() {
@@ -112,7 +113,7 @@ function Map() {
               <div className="grid grid-rows-1 grid-cols-1">
                 <div className="grid grid-cols-[90%_10%] h-10">
                     <h1 className="text-xl mb-2 p-2">Layers</h1>
-                    <div className="btn border-solid border-2 border-stone-300 rounded-md mt-3 mr-2 mb-4 hover:bg-stone-300" onClick= {() => toggleFilterTool()}>
+                    <div className="btn border-solid border-2 border-stone-200 rounded-md mt-3 mr-2 mb-4 hover:bg-stone-300" onClick= {() => toggleFilterTool()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-filter" viewBox="0 0 16 16">
                             <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
                         </svg>
@@ -131,24 +132,7 @@ function Map() {
                 {Object.keys(vectorLayers).map((lyr: string) => {
                     if (filter === "" || vectorLayers[lyr].layer.name.includes(filter) || vectorLayers[lyr].layer.schema.includes(filter)) {
                         return (
-                            <tr className="border-solid border-1 border-stone-200">
-                                <input
-                                    className="ml-4"
-                                    type="checkbox"
-                                    id={vectorLayers[lyr].layer.name}
-                                    value=""
-                                    checked={vectorLayers[lyr].layer.visible}
-                                    onChange={() => {
-                                        dispatch(toggleVectorLayerVisibility(vectorLayers[lyr].layer.name));
-                                    }}
-                                />
-                                <label
-                                    htmlFor={vectorLayers[lyr].layer.name}
-                                    className="pl-2"
-                                >
-                                    <span className="text-xs">{vectorLayers[lyr].layer.schema}.</span>{vectorLayers[lyr].layer.name}
-                                </label>
-                            </tr>
+                            <LayerPaneItem item={vectorLayers[lyr]} />
                         );
                     }
                 })}

@@ -26,6 +26,12 @@ pub async fn buffer(
         let state = state.lock().await;
         let _ = state.app_handle.emit("loading", 25);
         let layer = ast["args"][0];
+
+        let layer_split = layer.split(".").collect::<Vec<&str>>();
+        let short_layer = match layer_split.len() {
+            2 => layer_split[1],
+            _ => layer_split[0]
+        };
         let buffer_size = ast["args"][1];
 
         let mut pgsql_client =
@@ -41,7 +47,7 @@ pub async fn buffer(
         ) {
             Ok(_) => {
                 let _ = state.app_handle.emit("loading", 90);
-                let _ = state.app_handle.emit("add-vector-layer", [format!("{}_buffer", layer), "public".to_string()]);
+                let _ = state.app_handle.emit("add-vector-layer", [format!("{}_buffer", short_layer), "public".to_string()]);
                 output.results.push("Done.".to_string());
             },
             Err(_) => output.errors.push("ERROR! Couldn't create buffer.".to_string())
