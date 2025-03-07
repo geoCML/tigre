@@ -187,12 +187,19 @@ pub async fn add_layer(
 
     // SET GEOMETRY TYPE
     let set_geometry_query = match geometries[0].spatial_ref() {
-        Some(val) => format!(
-            "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({}, {})",
-            name,
-            geometry_type,
-            val.auth_code().unwrap()
-        ),
+        Some(val) => {
+            let srid = match val.auth_code() {
+                Ok(val) => val,
+                Err(_) => 0
+            };
+
+            format!(
+                "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({}, {})",
+                name,
+                geometry_type,
+                srid
+            )
+        },
         None => format!(
             "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({})",
             name, geometry_type
