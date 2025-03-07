@@ -4,6 +4,7 @@ pub mod appstate;
 pub mod db;
 pub mod output;
 pub mod repl;
+pub mod tools;
 
 use crate::appstate::AppState;
 use crate::db::{get_as_json, get_as_wkt};
