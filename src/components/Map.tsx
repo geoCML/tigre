@@ -60,10 +60,10 @@ function Map() {
           }));
       }
 
-      Promise.all(geomPromises).then(() => {
-          setRedrawing(false);
-          emit("loading", 0);
-      });
+      setRedrawing(false);
+      emit("loading", 0);
+
+      Promise.all(geomPromises);
   }
 
   useEffect(() => {
