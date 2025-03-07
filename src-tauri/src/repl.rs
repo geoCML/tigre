@@ -2,6 +2,7 @@ use crate::add::add;
 use crate::appstate::AppState;
 use crate::db::db;
 use crate::output::Output;
+use crate::tools::buffer;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::string::String;
@@ -95,7 +96,12 @@ pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Resul
             let db_output = db(&ast, &state).await.unwrap();
             output.errors.extend(db_output.errors);
             output.results.extend(db_output.results);
-        }
+        },
+        "buffer" => {
+            let buffer_output = buffer(&ast, &state).await.unwrap();
+            output.errors.extend(buffer_output.errors);
+            output.results.extend(buffer_output.results);
+        },
         "save" => println!("save"),
         &_ => {
             output.errors.push("ERROR! Unknown command.".to_string());
