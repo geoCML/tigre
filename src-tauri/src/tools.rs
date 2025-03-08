@@ -42,7 +42,7 @@ pub async fn buffer(
 
         let _ = state.app_handle.emit("loading", 70);
         match pgsql_client.execute(
-            format!("CREATE TABLE IF NOT EXISTS {}_buffer AS SELECT ST_Buffer(geom, {}) AS geom FROM {}", layer, buffer_size, layer).as_str(),
+            format!("CREATE TABLE IF NOT EXISTS public.{}_buffer AS SELECT ST_Buffer(geom, {}) AS geom FROM {}", layer, buffer_size, layer).as_str(),
             &[]
         ) {
             Ok(_) => {
@@ -51,6 +51,66 @@ pub async fn buffer(
                 output.results.push("Done.".to_string());
             },
             Err(_) => output.errors.push("ERROR! Couldn't create buffer.".to_string())
+        };
+
+        let _ = state.app_handle.emit("loading", 0);
+    }
+
+    Ok(output)
+}
+
+pub async fn intersect(
+    ast: &HashMap<&str, Vec<&str>>,
+    state: &State<'_, Mutex<AppState>>,
+) -> Result<Output, ()> {
+    let mut output = Output {
+        errors: vec![],
+        results: vec![],
+    };
+
+    if ast["args"].is_empty() {
+        output
+            .errors
+            .push("ERROR! No arguments provided for command 'intersect'.".to_string())
+    } else if ast["args"].len() != 2 {
+        output
+            .errors
+            .push("ERROR! Not enough arguments provided for command 'intersect'.".to_string())
+    } else {
+        let state = state.lock().await;
+        let _ = state.app_handle.emit("loading", 25);
+
+        let layer_1 = ast["args"][0];
+        let layer_1_split = layer_1.split(".").collect::<Vec<&str>>();
+        let short_layer_1 = match layer_1_split.len() {
+            2 => layer_1_split[1],
+            _ => layer_1_split[0]
+        };
+
+        let layer_2 = ast["args"][1];
+        let layer_2_split = layer_2.split(".").collect::<Vec<&str>>();
+        let short_layer_2 = match layer_2_split.len() {
+            2 => layer_2_split[1],
+            _ => layer_2_split[0]
+        };
+
+        let mut pgsql_client =
+            match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+                Ok(val) => val,
+                Err(_) => panic!("ERROR! Lost connection to the database.")
+            };
+
+        let _ = state.app_handle.emit("loading", 70);
+        match pgsql_client.execute(
+            format!("CREATE TABLE IF NOT EXISTS public.{}_{}_intersect AS SELECT ST_Intersection({}.geom, {}.geom) FROM {}, {}", short_layer_1, short_layer_2, layer_1, layer_2, layer_1, layer_2).as_str(),
+            &[]
+        ) {
+            Ok(_) => {
+                let _ = state.app_handle.emit("loading", 90);
+                let _ = state.app_handle.emit("add-vector-layer", [format!("{}_{}_intersect", short_layer_1, short_layer_2), "public".to_string()]);
+                output.results.push("Done.".to_string());
+            },
+            Err(_) => output.errors.push("ERROR! Couldn't create intersection.".to_string())
         };
 
         let _ = state.app_handle.emit("loading", 0);
