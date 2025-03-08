@@ -42,7 +42,7 @@ pub async fn buffer(
 
         let _ = state.app_handle.emit("loading", 70);
         match pgsql_client.execute(
-            format!("CREATE TABLE IF NOT EXISTS public.{}_buffer AS SELECT ST_Buffer(geom, {}) AS geom FROM {}", layer, buffer_size, layer).as_str(),
+            format!("CREATE TABLE IF NOT EXISTS public.{}_buffer AS SELECT ST_Buffer(geom, {}) AS geom FROM {}", short_layer, buffer_size, layer).as_str(),
             &[]
         ) {
             Ok(_) => {
@@ -50,7 +50,7 @@ pub async fn buffer(
                 let _ = state.app_handle.emit("add-vector-layer", [format!("{}_buffer", short_layer), "public".to_string()]);
                 output.results.push("Done.".to_string());
             },
-            Err(_) => output.errors.push("ERROR! Couldn't create buffer.".to_string())
+            Err(err) => output.errors.push(format!("ERROR! Couldn't create buffer: {}", err))
         };
 
         let _ = state.app_handle.emit("loading", 0);
@@ -102,7 +102,7 @@ pub async fn intersect(
 
         let _ = state.app_handle.emit("loading", 70);
         match pgsql_client.execute(
-            format!("CREATE TABLE IF NOT EXISTS public.{}_{}_intersect AS SELECT ST_Intersection({}.geom, {}.geom) FROM {}, {}", short_layer_1, short_layer_2, layer_1, layer_2, layer_1, layer_2).as_str(),
+            format!("CREATE TABLE IF NOT EXISTS public.{}_{}_intersect AS SELECT ST_Intersection({}.geom, {}.geom) AS geom FROM {}, {}", short_layer_1, short_layer_2, layer_1, layer_2, layer_1, layer_2).as_str(),
             &[]
         ) {
             Ok(_) => {
@@ -110,7 +110,7 @@ pub async fn intersect(
                 let _ = state.app_handle.emit("add-vector-layer", [format!("{}_{}_intersect", short_layer_1, short_layer_2), "public".to_string()]);
                 output.results.push("Done.".to_string());
             },
-            Err(_) => output.errors.push("ERROR! Couldn't create intersection.".to_string())
+            Err(err) => output.errors.push(format!("ERROR! Couldn't create intersection: {}", err))
         };
 
         let _ = state.app_handle.emit("loading", 0);
