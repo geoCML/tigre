@@ -60,7 +60,6 @@ function Map() {
 
       setRedrawing(false);
       emit("loading", 0);
-
       Promise.all(geomPromises);
   }
 
