@@ -60,7 +60,6 @@ function Map() {
 
       setRedrawing(false);
       emit("loading", 0);
-
       Promise.all(geomPromises);
   }
 
@@ -76,10 +75,6 @@ function Map() {
           map.current!.setView([0, 0], 2);
 
           map.current.on("zoomend", () => {
-              setRedrawing(true);
-          });
-
-          map.current.on("dragend", () => {
               setRedrawing(true);
           });
 
