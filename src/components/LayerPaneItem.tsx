@@ -18,7 +18,7 @@ function LayerPaneItem(props: LayerPaneItemProps) {
     }
 
     return (
-        <tr className="grid grid-rows-1 grid-cols-[91%_9%] border-solid border-1 border-stone-200">
+        <tr className="grid grid-rows-1 grid-cols-[92%_8%] border-solid border-1 border-stone-200">
             <div>
                 <input
                     className="ml-4"
