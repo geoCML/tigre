@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { parse } from "wkt";
@@ -103,15 +103,15 @@ function Map() {
                 <path d="M8.235 1.559a.5.5 0 0 0-.47 0l-7.5 4a.5.5 0 0 0 0 .882L3.188 8 .264 9.559a.5.5 0 0 0 0 .882l7.5 4a.5.5 0 0 0 .47 0l7.5-4a.5.5 0 0 0 0-.882L12.813 8l2.922-1.559a.5.5 0 0 0 0-.882zm3.515 7.008L14.438 10 8 13.433 1.562 10 4.25 8.567l3.515 1.874a.5.5 0 0 0 .47 0zM8 9.433 1.562 6 8 2.567 14.438 6z"/>
             </svg>
           </div>
-          <div id="layers-pane" className="z-[998] absolute w-80 h-100 bg-white rounded overflow-auto border border-2 border-solid border-stone-300" style={{
+          <div id="layers-pane" className="z-[998] absolute w-1/3 h-100 bg-white rounded overflow-auto border border-2 border-solid border-stone-300" style={{
               bottom: 165,
               marginLeft: 20,
               visibility: layersPaneVisible ? "visible" : "hidden"
           }}>
               <div className="grid grid-rows-1 grid-cols-1">
-                <div className="grid grid-cols-[90%_10%] h-10">
+                <div className="grid grid-cols-[93%_7%] h-10">
                     <h1 className="text-xl mb-2 p-2">Layers</h1>
-                    <div className="btn border-solid border-2 border-stone-200 rounded-md mt-3 mr-2 mb-4 hover:bg-stone-300" onClick= {() => toggleFilterTool()}>
+                    <div className="btn border-solid border-2 border-stone-200 rounded-md mt-3 mr-3 mb-4 hover:bg-stone-300" onClick= {() => toggleFilterTool()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-filter" viewBox="0 0 16 16">
                             <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
                         </svg>
