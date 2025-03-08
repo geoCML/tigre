@@ -3,13 +3,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { parse } from "wkt";
-import { toggleVectorLayerVisibility } from "../map.slice"
 import LayerPaneItem from "./LayerPaneItem";
 import L from "leaflet";
 
 function Map() {
   let map = useRef<L.Map>(undefined);
-  const dispatch = useDispatch();
   const [redrawing, setRedrawing] = useState(false);
   const [layersPaneVisible, setLayersPaneVisible] = useState(false);
   const [filterToolVisible, setFilterToolVisible] = useState(false);

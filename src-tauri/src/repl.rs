@@ -2,7 +2,7 @@ use crate::add::add;
 use crate::appstate::AppState;
 use crate::db::db;
 use crate::output::Output;
-use crate::tools::buffer;
+use crate::tools::{buffer, intersect};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::string::String;
@@ -101,6 +101,11 @@ pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Resul
             let buffer_output = buffer(&ast, &state).await.unwrap();
             output.errors.extend(buffer_output.errors);
             output.results.extend(buffer_output.results);
+        },
+        "intersect" => {
+            let intersect_output = intersect(&ast, &state).await.unwrap();
+            output.errors.extend(intersect_output.errors);
+            output.results.extend(intersect_output.results);
         },
         "save" => println!("save"),
         &_ => {
