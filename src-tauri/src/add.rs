@@ -190,7 +190,7 @@ pub async fn add_layer(
         Some(val) => {
             let srid = match val.auth_code() {
                 Ok(val) => val,
-                Err(_) => 0
+                Err(_) => 4326
             };
 
             format!(
