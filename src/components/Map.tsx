@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
-import { emit } from "@tauri-apps/api/event";
-import { parse } from "wkt";
+import { emit, listen } from "@tauri-apps/api/event";
 import LayerPaneItem from "./LayerPaneItem";
 import L from "leaflet";
+import TableView from "./TableView";
 
 function Map() {
   let map = useRef<L.Map>(undefined);
   const [redrawing, setRedrawing] = useState(false);
   const [layersPaneVisible, setLayersPaneVisible] = useState(false);
+  const [tableViewVisible, setTableViewVisible] = useState(false);
   const [filterToolVisible, setFilterToolVisible] = useState(false);
   const [filter, setFilter] = useState("");
   const vectorLayers = useSelector((state: any) => state.map.vectorLayers);
@@ -23,43 +24,55 @@ function Map() {
     setFilterToolVisible(!filterToolVisible);
   }
 
+  listen<string>('open-table', (_event) => {
+    setTableViewVisible(true);
+  });
+
+
+  listen<string>('close-table', (_event) => {
+    setTableViewVisible(false);
+  });
+
+
   function redraw() {
       if (!map.current)
           return
 
       emit("loading", 75);
-      map.current!.eachLayer((map_layer) => {
-          map.current!.removeLayer(map_layer)
-      });
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-          subdomains: 'abcd',
-          maxZoom: 20,
-          detectRetina: false
-      }).addTo(map.current!);
-
-      emit("loading", 90);
 
       const geomPromises = []
+
+      if (Object.keys(vectorLayers).length === 0) {
+          setRedrawing(false);
+          emit("loading", 0);
+      }
 
       for (const lyr of Object.keys(vectorLayers)) {
           if (!vectorLayers[lyr].layer.visible)
             continue;
 
-          const bounds = map.current!.getBounds();
-          geomPromises.push(invoke<string[]>("get_as_wkt", {
+          geomPromises.push(invoke<string[]>("get_as_json_gpkg", {
               table: vectorLayers[lyr].layer.name,
-              bb: [[bounds.getEast(), bounds.getSouth()], [bounds.getWest(), bounds.getNorth()]]}
-          ).then((result) => {
+              schema: vectorLayers[lyr].layer.schema,
+          }).then((result) => {
               result.forEach((geom) => {
-                L.geoJson(parse(geom)).addTo(map.current!);
+                L.geoJson(JSON.parse(geom)).addTo(map.current!);
               });
+              setRedrawing(false);
+              emit("loading", 0);
           }));
       }
 
-      setRedrawing(false);
-      emit("loading", 0);
+      map.current.removeEventListener("click");
+      map.current.on("click", (event) => {
+          Object.keys(vectorLayers)
+            .filter((lyr) => vectorLayers[lyr].layer.visible)
+            .forEach((lyr) => {
+                (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `inspect ${lyr} '${event.latlng.lng}, ${event.latlng.lat}'`;
+                (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
+            });
+      }, { once: true });
+
       Promise.all(geomPromises);
   }
 
@@ -70,17 +83,21 @@ function Map() {
 
   useEffect(() => {
       if (!map.current) {
-          map.current = L.map("map", { renderer: new L.Canvas(), fadeAnimation: false, zoomAnimation: true, zoomSnap: 0.85 });
+          map.current = L.map("map", {
+              renderer: new L.Canvas(),
+              fadeAnimation: false,
+              zoomAnimation: true,
+              zoomSnap: 0.85
+          });
 
           map.current!.setView([0, 0], 2);
 
-          map.current.on("zoomend", () => {
-              setRedrawing(true);
-          });
-
-          map.current.on("dragend", () => {
-              setRedrawing(true);
-          });
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
+              maxZoom: 20,
+              detectRetina: false
+          }).addTo(map.current!);
 
           setRedrawing(true);
       }
@@ -136,7 +153,11 @@ function Map() {
                 </tbody>
               </table>
         </div>
-        <div id="map" className="position-absolute m-auto h-[86vh] w-full"></div>
+        { tableViewVisible ? ( <TableView /> ) : ( <></> )}
+        <div id="map" style={{
+            userSelect: "none",
+            WebkitUserSelect: "none"
+        }} className="position-absolute m-auto h-[86vh] w-full"></div>
     </>
   );
 }

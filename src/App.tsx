@@ -14,7 +14,7 @@ import LoadingBar from "./components/LoadingBar";
 function App() {
     const dispatch = useDispatch();
     const [history, setHistory] = useState([
-        <REPLHistoryItem cmd={"Welcome to TIGRE!"} 
+        <REPLHistoryItem cmd={"Welcome to TIGRE!"}
             output={{
                 errors: [],
                 results: ["Learn more about TIGRE here: https://geocml.github.io/docs/"]
@@ -38,11 +38,6 @@ function App() {
         if (event.payload)
             dispatch(removeAllVectorLayers());
     });
-
-    listen<string>('open-table', (event) => {
-        console.log(event.payload);
-    });
-
 
     return (
       <main>
