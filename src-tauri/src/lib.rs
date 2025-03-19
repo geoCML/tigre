@@ -5,9 +5,10 @@ pub mod db;
 pub mod output;
 pub mod repl;
 pub mod tools;
+pub mod gdal_utils;
 
 use crate::appstate::AppState;
-use crate::db::{get_as_json, get_as_wkt};
+use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg};
 use crate::repl::{eval, read};
 use postgres::{Client, NoTls};
 use std::string::String;
@@ -23,6 +24,7 @@ pub async fn run() {
             let state = Mutex::new(AppState {
                 app_handle: app.handle().clone(),
                 pgsql_connection: String::new(),
+                gdal_pgsql_connection: String::new(),
                 pgsql_client: Client::connect("", NoTls),
             });
 
@@ -34,7 +36,8 @@ pub async fn run() {
             read,
             eval,
             get_as_json,
-            get_as_wkt
+            get_as_wkt,
+            get_as_json_gpkg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

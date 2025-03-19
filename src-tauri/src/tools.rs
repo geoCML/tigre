@@ -1,9 +1,9 @@
-use crate::output::Output;
 use crate::appstate::AppState;
-use tokio::sync::Mutex;
+use crate::output::Output;
 use postgres::{Client, NoTls};
-use tauri::{Emitter, State};
 use std::collections::HashMap;
+use tauri::{Emitter, State};
+use tokio::sync::Mutex;
 
 pub async fn inspect(
     ast: &HashMap<&str, Vec<&str>>,
@@ -25,14 +25,13 @@ pub async fn inspect(
         let layer_split = layer.split(".").collect::<Vec<&str>>();
         let short_layer = match layer_split.len() {
             2 => layer_split[1],
-            _ => layer_split[0]
+            _ => layer_split[0],
         };
 
-        let mut pgsql_client =
-            match Client::connect(state.pgsql_connection.as_str(), NoTls) {
-                Ok(val) => val,
-                Err(_) => panic!("ERROR! Lost connection to the database.")
-            };
+        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+            Ok(val) => val,
+            Err(_) => panic!("ERROR! Lost connection to the database."),
+        };
 
         let _ = state.app_handle.emit("loading", 70);
         if ast["args"].len() == 2 {
@@ -56,20 +55,27 @@ pub async fn inspect(
             };
         } else {
             match pgsql_client.query(
-                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {}) dta", short_layer, layer).as_str(),
-                &[]
+                format!(
+                    "SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {}) dta",
+                    short_layer, layer
+                )
+                .as_str(),
+                &[],
             ) {
-                Ok(val) => {
-                    match val.first() {
-                        Some(row) => {
-                            let _ = state.app_handle.emit("loading", 90);
-                            let _ = state.app_handle.emit("open-table", format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()));
-                            output.results.push("Done.".to_string());
-                        },
-                        None => output.results.push("Found 0 results.".to_string())
+                Ok(val) => match val.first() {
+                    Some(row) => {
+                        let _ = state.app_handle.emit("loading", 90);
+                        let _ = state.app_handle.emit(
+                            "open-table",
+                            format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()),
+                        );
+                        output.results.push("Done.".to_string());
                     }
+                    None => output.results.push("Found 0 results.".to_string()),
                 },
-                Err(err) => output.errors.push(format!("ERROR! Couldn't inspect layer: {}", err))
+                Err(err) => output
+                    .errors
+                    .push(format!("ERROR! Couldn't inspect layer: {}", err)),
             };
         }
 
@@ -104,15 +110,14 @@ pub async fn buffer(
         let layer_split = layer.split(".").collect::<Vec<&str>>();
         let short_layer = match layer_split.len() {
             2 => layer_split[1],
-            _ => layer_split[0]
+            _ => layer_split[0],
         };
         let buffer_size = ast["args"][1];
 
-        let mut pgsql_client =
-            match Client::connect(state.pgsql_connection.as_str(), NoTls) {
-                Ok(val) => val,
-                Err(_) => panic!("ERROR! Lost connection to the database.")
-            };
+        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+            Ok(val) => val,
+            Err(_) => panic!("ERROR! Lost connection to the database."),
+        };
 
         let _ = state.app_handle.emit("loading", 70);
         match pgsql_client.execute(
@@ -158,21 +163,20 @@ pub async fn intersect(
         let layer_1_split = layer_1.split(".").collect::<Vec<&str>>();
         let short_layer_1 = match layer_1_split.len() {
             2 => layer_1_split[1],
-            _ => layer_1_split[0]
+            _ => layer_1_split[0],
         };
 
         let layer_2 = ast["args"][1];
         let layer_2_split = layer_2.split(".").collect::<Vec<&str>>();
         let short_layer_2 = match layer_2_split.len() {
             2 => layer_2_split[1],
-            _ => layer_2_split[0]
+            _ => layer_2_split[0],
         };
 
-        let mut pgsql_client =
-            match Client::connect(state.pgsql_connection.as_str(), NoTls) {
-                Ok(val) => val,
-                Err(_) => panic!("ERROR! Lost connection to the database.")
-            };
+        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+            Ok(val) => val,
+            Err(_) => panic!("ERROR! Lost connection to the database."),
+        };
 
         let _ = state.app_handle.emit("loading", 70);
         match pgsql_client.execute(
