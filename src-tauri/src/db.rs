@@ -11,6 +11,32 @@ use geozero::wkb::GpkgWkb;
 use geozero::ToJson;
 use std::fs;
 
+#[derive(Default)]
+#[derive(Clone)]
+#[derive(PartialEq)]
+pub struct PGConnection {
+    username: String,
+    password: String,
+    host: String,
+    port: String,
+    db: String,
+    optional_params: Option<String>
+}
+
+impl PGConnection {
+    pub fn pg_string(&self) -> String {
+        let optional_params = match &self.optional_params {
+            Some(params) => &params,
+            None => ""
+        };
+
+        format!("postgresql://{}:{}@{}:{}/{}?{}", &self.username, &self.password, &self.host, &self.port, &self.db, optional_params)
+    }
+
+    pub fn gdal_string(&self) -> String {
+        format!("PG:dbname={} host={} port={} user={} password={}", &self.db, &self.host, &self.port, &self.username, &self.password)
+    }
+}
 
 #[tauri::command]
 pub async fn get_as_json_gpkg(
@@ -61,7 +87,7 @@ pub async fn get_as_wkt(
     let _ = state.lock().await.app_handle.emit("loading", 25);
 
     let mut pgsql_client =
-        match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
+        match Client::connect(&state.lock().await.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => {
                 let _ = state.lock().await.app_handle.emit("loading", 0);
@@ -107,7 +133,7 @@ pub async fn get_as_json(
 
     let state: State<'_, Mutex<AppState>> = app.app_handle().state();
     let mut pgsql_client =
-        match Client::connect(state.lock().await.pgsql_connection.as_str(), NoTls) {
+        match Client::connect(&state.lock().await.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => {
                 panic!("ERROR! Lost connection to the database.");
@@ -145,16 +171,32 @@ async fn db_connect(
         return Ok(output);
     }
 
+    if ast["args"].len() < 6 {
+        output
+            .errors
+            .push("ERROR! You must provide a username, password, host, port, and database to connect to PostgreSQL.".to_string());
+        return Ok(output);
+    }
 
     let mut state = state.lock().await;
 
     let _ = &state.app_handle.emit("loading", 10);
     let _ = &state.app_handle.emit("wipe-layers", true);
 
-    state.pgsql_connection = ast["args"][1].to_string();
-    state.gdal_pgsql_connection = "PG:dbname=geocml_db host=127.0.0.1 port=54XX user=geocml password=XXXX".to_string();
+    state.pgsql_connection = PGConnection {
+        username: ast["args"][1].to_string(),
+        password: ast["args"][2].to_string(),
+        host: ast["args"][3].to_string(),
+        port: ast["args"][4].to_string(),
+        db: ast["args"][5].to_string(),
+        optional_params: None
+    };
 
-    let client = Client::connect(state.pgsql_connection.as_str(), NoTls);
+    if ast["args"].len() == 7 {
+        state.pgsql_connection.optional_params = Some(ast["args"][6].to_string());
+    }
+
+    let client = Client::connect(&state.pgsql_connection.pg_string(), NoTls);
     let _ = fs::create_dir("/tmp/tigre");
     let _ = &state.app_handle.emit("loading", 25);
 
@@ -170,7 +212,7 @@ async fn db_connect(
                             let name = row.get::<usize, &str>(0);
 
 
-                            postgis_layer_to_gpkg(name, schema, state.gdal_pgsql_connection.clone()).await;
+                            postgis_layer_to_gpkg(name, schema, state.pgsql_connection.gdal_string()).await;
 
                             let _ = &state.app_handle.emit(
                                 "add-vector-layer",
@@ -193,7 +235,7 @@ async fn db_connect(
             output
                 .errors
                 .push("ERROR! Failed to connect to database.".to_string());
-            state.pgsql_connection = String::new();
+            state.pgsql_connection = PGConnection::default();
             let _ = &state.app_handle.emit("loading", 0);
         }
     }
@@ -225,7 +267,7 @@ pub async fn db(
             "current" => {
                 output
                     .results
-                    .extend(vec![state.lock().await.pgsql_connection.clone()]);
+                    .extend(vec![state.lock().await.pgsql_connection.pg_string()]);
             }
             &_ => output
                 .errors
