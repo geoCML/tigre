@@ -35,7 +35,9 @@ cornucopia_sync = "0.4.0"
 postgres = { version = "0.17.3", features = ["with-serde_json-1"] }
 gdal = { version = "0.17.1", features = ["bindgen"] }
 gdal-sys = "0.10.0"
-martin = "0.14.2"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"
 tauri-plugin-dialog = "2"
+rusqlite = { version = "0.34.0", features = ["load_extension", "bundled"] }
+geozero = { version = "0.14.0", features = ["with-wkb"] }
+hex = "0.4.3"

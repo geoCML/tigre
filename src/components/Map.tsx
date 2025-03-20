@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
-import { parse } from "wkt";
 import LayerPaneItem from "./LayerPaneItem";
 import L from "leaflet";
 
@@ -43,23 +42,27 @@ function Map() {
 
       const geomPromises = []
 
+      if (Object.keys(vectorLayers).length === 0) {
+          setRedrawing(false);
+          emit("loading", 0);
+      }
+
       for (const lyr of Object.keys(vectorLayers)) {
           if (!vectorLayers[lyr].layer.visible)
             continue;
 
-          const bounds = map.current!.getBounds();
-          geomPromises.push(invoke<string[]>("get_as_wkt", {
+          geomPromises.push(invoke<string[]>("get_as_json_gpkg", {
               table: vectorLayers[lyr].layer.name,
-              bb: [[bounds.getEast(), bounds.getSouth()], [bounds.getWest(), bounds.getNorth()]]}
-          ).then((result) => {
+              schema: vectorLayers[lyr].layer.schema,
+          }).then((result) => {
               result.forEach((geom) => {
-                L.geoJson(parse(geom)).addTo(map.current!);
+                L.geoJson(JSON.parse(geom)).addTo(map.current!);
               });
+              setRedrawing(false);
+              emit("loading", 0);
           }));
       }
 
-      setRedrawing(false);
-      emit("loading", 0);
       Promise.all(geomPromises);
   }
 
@@ -73,14 +76,6 @@ function Map() {
           map.current = L.map("map", { renderer: new L.Canvas(), fadeAnimation: false, zoomAnimation: true, zoomSnap: 0.85 });
 
           map.current!.setView([0, 0], 2);
-
-          map.current.on("zoomend", () => {
-              setRedrawing(true);
-          });
-
-          map.current.on("dragend", () => {
-              setRedrawing(true);
-          });
 
           setRedrawing(true);
       }
