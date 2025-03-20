@@ -28,7 +28,7 @@ pub async fn inspect(
             _ => layer_split[0],
         };
 
-        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+        let mut pgsql_client = match Client::connect(&state.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => panic!("ERROR! Lost connection to the database."),
         };
@@ -114,7 +114,7 @@ pub async fn buffer(
         };
         let buffer_size = ast["args"][1];
 
-        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+        let mut pgsql_client = match Client::connect(&state.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => panic!("ERROR! Lost connection to the database."),
         };
@@ -173,7 +173,7 @@ pub async fn intersect(
             _ => layer_2_split[0],
         };
 
-        let mut pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+        let mut pgsql_client = match Client::connect(&state.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => panic!("ERROR! Lost connection to the database."),
         };

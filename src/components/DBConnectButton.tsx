@@ -26,7 +26,7 @@ function DBConnectButton() {
                     const db = (document.getElementById("db-connect-database") as HTMLInputElement).value;
                     const params = (document.getElementById("db-connect-optional-params") as HTMLInputElement).value;
 
-                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db connect 'postgresql://${username}:${password}@${host}:${port}/${db}?${params}'`;
+                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db connect ${username} ${password} ${host} ${port} ${db} ${params}`;
                     (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
 
                     setFormVisible(false);
@@ -42,7 +42,7 @@ function DBConnectButton() {
                         <input id="db-connect-host" className="m-1 p-1 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="host" type="text"/>
 
                         <label htmlFor="db-connect-port" className="text-stone-700">:</label>
-                        <input id="db-connect-port" className="m-1 p-1 w-13 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="port" value="5432" type="text"/>
+                        <input id="db-connect-port" className="m-1 p-1 w-13 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="port" type="text"/>
 
                         <label htmlFor="db-connect-database" className="text-stone-700">/</label>
                         <input id="db-connect-database" className="m-1 p-1 w-25 bg-stone-800 text-white border-solid border-2 border-stone-800 rounded-md" placeholder="database" type="text"/>

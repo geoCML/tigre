@@ -1,12 +1,12 @@
 #![feature(file_buffered)]
 use crate::appstate::AppState;
 use crate::output::Output;
+use crate::db::PGConnection;
 use crate::gdal_utils::{generic_to_postgis_layer, postgis_layer_to_gpkg};
 use postgres::{Client, NoTls};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::string::String;
 use tauri::{Emitter, State};
 use tokio::sync::Mutex;
 use gdal::Dataset;
@@ -24,7 +24,7 @@ pub async fn add_layer(
     let state = state.lock().await;
 
     let _ = state.app_handle.emit("loading", 10);
-    if state.pgsql_connection == String::new() {
+    if state.pgsql_connection == PGConnection::default() {
         output
             .errors
             .push("ERROR! You must connect to a database before adding a layer.".to_string());
@@ -48,7 +48,7 @@ pub async fn add_layer(
         return Ok(output);
     }
 
-    let pgsql_client = match Client::connect(state.pgsql_connection.as_str(), NoTls) {
+    let pgsql_client = match Client::connect(&state.pgsql_connection.pg_string(), NoTls) {
         Ok(val) => val,
         Err(_) => {
             output
@@ -87,7 +87,7 @@ pub async fn add_layer(
     let _ = state.app_handle.emit("loading", 85);
 
     generic_to_postgis_layer(dataset, pgsql_client, &name).await;
-    postgis_layer_to_gpkg(&name, "public", state.gdal_pgsql_connection.clone()).await;
+    postgis_layer_to_gpkg(&name, "public", state.pgsql_connection.gdal_string()).await;
 
     let _ = state.app_handle.emit("add-vector-layer", [name, "public".to_string()]);
     let _ = state.app_handle.emit("loading", 0);
