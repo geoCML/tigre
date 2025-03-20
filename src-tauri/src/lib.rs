@@ -8,7 +8,7 @@ pub mod tools;
 pub mod gdal_utils;
 
 use crate::appstate::AppState;
-use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg};
+use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, PGConnection};
 use crate::repl::{eval, read};
 use postgres::{Client, NoTls};
 use std::string::String;
@@ -23,8 +23,7 @@ pub async fn run() {
         .setup(|app| {
             let state = Mutex::new(AppState {
                 app_handle: app.handle().clone(),
-                pgsql_connection: String::new(),
-                gdal_pgsql_connection: String::new(),
+                pgsql_connection: PGConnection::default(),
                 pgsql_client: Client::connect("", NoTls),
             });
 
