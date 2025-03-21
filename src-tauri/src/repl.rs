@@ -2,6 +2,7 @@ use crate::add::add;
 use crate::appstate::AppState;
 use crate::db::db;
 use crate::output::Output;
+use crate::symbology::symbology;
 use crate::tools::{buffer, inspect, intersect};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -111,6 +112,11 @@ pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Resul
             let inspect_output = inspect(&ast, &state).await.unwrap();
             output.errors.extend(inspect_output.errors);
             output.results.extend(inspect_output.results);
+        },
+        "symbology" => {
+            let symbology_output = symbology(&ast, &state).await.unwrap();
+            output.errors.extend(symbology_output.errors);
+            output.results.extend(symbology_output.results);
         }
         "save" => println!("save"),
         &_ => {
