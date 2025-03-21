@@ -98,7 +98,7 @@ pub async fn get_as_wkt(
     let mut wkt_rows: Vec<String> = vec![];
     let wkt_result = pgsql_client.query(
         format!(
-            "SELECT ST_AsText(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom)) FROM {}",
+            "SELECT ST_AsText(ST_Intersection(ST_SetSRID(ST_MakeEnvelope({}, {}, {}, {}), 4326), geom)) FROM {}",
             bb[0][0], bb[0][1], bb[1][0], bb[1][1], table
         )
         .as_str(),

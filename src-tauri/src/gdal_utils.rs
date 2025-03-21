@@ -23,7 +23,7 @@ pub async fn generic_to_postgis_layer(
         GDALVectorTranslate(
             //null(),
             //CString::new(state.lock().unwrap().pgsql_connection.clone()).unwrap().as_ptr(),
-            CString::new(format!("/tmp/{}.csv", name)).unwrap().as_ptr(),
+            CString::new(format!("/tmp/tigre/{}.csv", name)).unwrap().as_ptr(),
             null_mut(),
             1,
             raw_dataset.as_mut_ptr(),
@@ -92,7 +92,7 @@ pub async fn generic_to_postgis_layer(
     match create_layer_result {
         Ok(_) => (),
         Err(_) => {
-            let _ = fs::remove_file(format!("/tmp/{}.csv", &name));
+            let _ = fs::remove_file(format!("/tmp/tigre/{}.csv", &name));
             panic!("ERROR! Failed to create layer in database.");
         }
     };
@@ -127,7 +127,7 @@ pub async fn generic_to_postgis_layer(
     };
 
     // COPY FROM CSV -> NEW PGSQL TABLE
-    let csv_file = File::open_buffered(format!("/tmp/{}.csv", name).as_str()).unwrap();
+    let csv_file = File::open_buffered(format!("/tmp/tigre/{}.csv", name).as_str()).unwrap();
     let mut cols = String::new();
     let mut queries: Vec<String> = vec![];
 
@@ -173,7 +173,7 @@ pub async fn generic_to_postgis_layer(
         }
     }
 
-    let _ = fs::remove_file(format!("/tmp/{}.csv", name));
+    let _ = fs::remove_file(format!("/tmp/tigre/{}.csv", name));
 }
 
 pub async fn generic_to_gpkg(dataset_name: &str) -> Result<Vec<String>, ()> {

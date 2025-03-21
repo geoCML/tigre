@@ -39,11 +39,6 @@ function App() {
             dispatch(removeAllVectorLayers());
     });
 
-    listen<string>('open-table', (event) => {
-        console.log(event.payload);
-    });
-
-
     return (
       <main>
         <div className="w-full h-[90vh] grid grid-cols-[20%_80%] grid-rows-1">

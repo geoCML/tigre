@@ -38,14 +38,14 @@ pub async fn inspect(
             let location = ast["args"][1];
 
             match pgsql_client.query(
-                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {} WHERE ST_Intersects(geom, ST_MakePoint({})) = TRUE) dta", short_layer, layer, location).as_str(),
+                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {} WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint({}), 0)) = TRUE) dta", short_layer, layer, location).as_str(),
                 &[]
             ) {
                 Ok(val) => {
                     match val.first() {
                         Some(row) => {
                             let _ = state.app_handle.emit("loading", 90);
-                            let _ = state.app_handle.emit("open-table", format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()));
+                            let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()).as_str()]);
                             output.results.push("Done.".to_string());
                         },
                         None => output.results.push("Found 0 results.".to_string())
@@ -55,23 +55,19 @@ pub async fn inspect(
             };
         } else {
             match pgsql_client.query(
-                format!(
-                    "SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {}) dta",
-                    short_layer, layer
-                )
-                .as_str(),
+                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg(sub) FROM (SELECT * FROM {} ORDER BY geom LIMIT 1000) sub) dta", layer)
+                    .as_str(),
                 &[],
             ) {
-                Ok(val) => match val.first() {
-                    Some(row) => {
-                        let _ = state.app_handle.emit("loading", 90);
-                        let _ = state.app_handle.emit(
-                            "open-table",
-                            format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()),
-                        );
-                        output.results.push("Done.".to_string());
+                Ok(val) => {
+                    match val.first() {
+                        Some(row) => {
+                            let _ = state.app_handle.emit("loading", 90);
+                            let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()).as_str()]);
+                            output.results.push("Done.".to_string());
+                        },
+                        None => output.results.push("Found 0 results.".to_string())
                     }
-                    None => output.results.push("Found 0 results.".to_string()),
                 },
                 Err(err) => output
                     .errors
