@@ -55,8 +55,15 @@ function Map() {
                 table: vectorLayers[lyr].layer.name,
                 schema: vectorLayers[lyr].layer.schema,
             }).then((result) => {
-                result.forEach((geom) => {
-                    L.geoJson(JSON.parse(geom)).addTo(map.current!);
+                invoke<string>("get_layer_symbology", {
+                    table: vectorLayers[lyr].layer.name,
+                    schema: vectorLayers[lyr].layer.schema,
+                }).then((symbology) => {
+                    result.forEach((geom) => {
+                        L.geoJson(JSON.parse(geom), {
+                            style: JSON.parse(JSON.parse(JSON.parse(symbology)))
+                        }).addTo(map.current!);
+                    });
                 });
                 setRedrawing(false);
                 emit("loading", 0);
