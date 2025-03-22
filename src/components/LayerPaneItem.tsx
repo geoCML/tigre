@@ -146,7 +146,6 @@ function LayerPaneItem(props: LayerPaneItemProps) {
                     </div>
                 </div>
             ) : (<></>)}
-
         </tr>
     )
 }

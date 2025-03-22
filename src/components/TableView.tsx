@@ -95,7 +95,7 @@ function TableView({ visible }: TableViewProps) {
                                                 .map((col) => {
                                                     return (
                                                         <td className="border-solid border-1 border-blue-200 overflow-scroll text-center">
-                                                            {JSON.stringify(row[col])}
+                                                            {JSON.stringify((row as Record<string, unknown>)[col])}
                                                         </td>
                                                     )
                                                 })}
