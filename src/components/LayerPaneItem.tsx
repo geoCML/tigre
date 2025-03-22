@@ -2,6 +2,7 @@ import { VectorLayer, RasterLayer } from "../types/Layer.type";
 import { useDispatch, useSelector } from "react-redux";
 import { useState, useRef } from "react";
 import { toggleVectorLayerVisibility } from "../map.slice";
+import { Symbology } from "../types/Symbology.type";
 
 type LayerPaneItemProps = {
     item: { layer: VectorLayer | RasterLayer }
@@ -11,31 +12,40 @@ function LayerPaneItem(props: LayerPaneItemProps) {
     const dispatch = useDispatch();
     const vectorLayers = useSelector((state: any) => state.map.vectorLayers);
     const [contextMenuVisible, setContentMenuVisible] = useState(false);
+    const [symbologyPaneVisible, setSymbologyPaneVisible] = useState(false);
     const bufferDistanceInput = useRef(null);
     const intersectLayerInput = useRef(null);
-
 
     function toggleContextMenu() {
         setContentMenuVisible(!contextMenuVisible);
     }
 
     return (
-        <tr className="grid grid-rows-1 grid-cols-[85%_15%] border-solid border-1 border-stone-200">
-            <div>
+        <tr className="grid grid-rows-1 grid-cols-[85%_15%] border-solid border-1 border-stone-200"
+            style={{
+                backgroundColor: contextMenuVisible || symbologyPaneVisible ? "rgb(191, 219, 254)" : "#fff"
+            }}
+        >
+            <div className="grid grid-cols-[5%_10%_80%]">
+                <div className="btn w-6 h-3 rounded-md m-2" style={
+                    { 
+                        backgroundColor: (props.item.layer as VectorLayer).symbology.fillColor,
+                        border: `2px solid ${(props.item.layer as VectorLayer).symbology.color}`
+                    }
+                } onClick={() => {
+                    setSymbologyPaneVisible(!symbologyPaneVisible);
+                }}> </div>
                 <input
-                    className="ml-4"
+                    className="m-2 ml-4"
                     type="checkbox"
                     id={props.item.layer.name}
                     value=""
-                    checked={props.item.layer.visible}
+                    checked={(props.item.layer as VectorLayer).visible}
                     onChange={() => {
                         dispatch(toggleVectorLayerVisibility(props.item.layer.name));
                     }}
                 />
-                <label
-                    htmlFor={props.item.layer.name}
-                    className="pl-2"
-                >
+                <label htmlFor={props.item.layer.name}>
                     <span className="text-xs">{props.item.layer.schema}.</span>{props.item.layer.name}
                 </label>
             </div>
@@ -95,6 +105,46 @@ function LayerPaneItem(props: LayerPaneItemProps) {
 
                     </tbody>
                 </table>
+            ) : (<></>)}
+
+            {symbologyPaneVisible ? (
+                <div className="absolute border-solid border-2 border-stone-200 bg-white w-3/4 right-1/4 mt-[20px]">
+                    <div className="grid grid-cols-[25%_75%] grid-rows-auto text-xs">
+                        <label htmlFor="fill-color">Fill Color:</label>
+                        <input id="fill-color" name="fill-color" type="color" defaultValue={(props.item.layer as VectorLayer).symbology.fillColor} />
+                        <label htmlFor="fill-opacity">Fill Opacity:</label>
+                        <input id="fill-opacity" name="fill-opacity" type="range" min="0" max="1" step="0.25" list="fill-opacity-markers" defaultValue={(props.item.layer as VectorLayer).symbology.fillOpacity} />
+                        <label htmlFor="border-color">Border Color:</label>
+                        <input id="border-color" name="border-color" type="color" defaultValue={(props.item.layer as VectorLayer).symbology.color} />
+                        <label htmlFor="border-width">Border Width:</label>
+                        <input id="border-width" name="border-width" type="range" min="0" max="8" step="2" list="border-width-markers" defaultValue={(props.item.layer as VectorLayer).symbology.weight} />
+                        <datalist id="border-width-markers">
+                            <option value="0"></option>
+                            <option value="2"></option>
+                            <option value="4"></option>
+                            <option value="6"></option>
+                            <option value="8"></option>
+                        </datalist>
+                        <datalist id="fill-opacity-markers">
+                            <option value="0"></option>
+                            <option value="0.25"></option>
+                            <option value="0.5"></option>
+                            <option value="0.75"></option>
+                            <option value="1"></option>
+                        </datalist>
+
+                        <input className="btn bg-blue-600 text-white hover:bg-blue-800" type="submit" value="Set Symbology" onClick={() => {
+                            const symbology = {
+                                fillColor: (document.getElementById("fill-color") as HTMLInputElement).value,
+                                fillOpacity: parseFloat((document.getElementById("fill-opacity") as HTMLInputElement).value),
+                                color: (document.getElementById("border-color") as HTMLInputElement).value,
+                                weight: parseFloat((document.getElementById("border-width") as HTMLInputElement).value)
+                            } as Symbology;
+                            (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `symbology set ${props.item.layer.schema}.${props.item.layer.name} '${JSON.stringify(symbology)}'`;
+                            (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
+                        }} />
+                    </div>
+                </div>
             ) : (<></>)}
 
         </tr>
