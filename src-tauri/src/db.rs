@@ -1,7 +1,7 @@
 use crate::appstate::AppState;
 use crate::output::Output;
 use crate::gdal_utils::postgis_layer_to_gpkg;
-use postgres::{Client, NoTls};
+use postgres::{Client, NoTls, Row};
 use std::collections::HashMap;
 use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex;
@@ -36,6 +36,36 @@ impl PGConnection {
     pub fn gdal_string(&self) -> String {
         format!("PG:dbname={} host={} port={} user={} password={}", &self.db, &self.host, &self.port, &self.username, &self.password)
     }
+}
+
+#[tauri::command]
+pub async fn get_layer_symbology(
+    schema: &str,
+    table: &str,
+    app: tauri::AppHandle,
+) -> Result<String, ()> {
+    let state: State<'_, Mutex<AppState>> = app.app_handle().state();
+
+    let mut pgsql_client =
+        match Client::connect(&state.lock().await.pgsql_connection.pg_string(), NoTls) {
+            Ok(val) => val,
+            Err(_) => {
+                panic!("ERROR! Lost connection to the database.");
+            }
+        };
+    
+    let layer_symbology: Vec<postgres::Row> = match pgsql_client.query(
+        format!("SELECT to_json(pg_catalog.obj_description('{}.{}'::regclass, 'pg_class'))::text", schema, table).as_str(),
+        &[],
+    ) {
+        Ok(layer_symbology) => layer_symbology,
+        Err(_err) => vec![]
+    };
+
+    match layer_symbology.first() {
+        Some(row) => Ok(row.get::<usize, String>(0)),
+        None => Ok("{}".to_string())
+    } 
 }
 
 #[tauri::command]

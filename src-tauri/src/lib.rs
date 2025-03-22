@@ -9,7 +9,7 @@ pub mod gdal_utils;
 pub mod symbology;
 
 use crate::appstate::AppState;
-use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, PGConnection};
+use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, get_layer_symbology, PGConnection};
 use crate::repl::{eval, read};
 use postgres::{Client, NoTls};
 use std::string::String;
@@ -37,7 +37,8 @@ pub async fn run() {
             eval,
             get_as_json,
             get_as_wkt,
-            get_as_json_gpkg
+            get_as_json_gpkg,
+            get_layer_symbology
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
