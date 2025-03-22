@@ -47,6 +47,11 @@ function Map() {
             emit("loading", 0);
         }
 
+        map.current.eachLayer((layer) => {
+            if (layer instanceof L.TileLayer) return;  // Keep the base tile layer
+            map.current!.removeLayer(layer);
+        });
+
         for (const lyr of Object.keys(vectorLayers)) {
             if (!vectorLayers[lyr].layer.visible)
                 continue;
@@ -55,15 +60,10 @@ function Map() {
                 table: vectorLayers[lyr].layer.name,
                 schema: vectorLayers[lyr].layer.schema,
             }).then((result) => {
-                invoke<string>("get_layer_symbology", {
-                    table: vectorLayers[lyr].layer.name,
-                    schema: vectorLayers[lyr].layer.schema,
-                }).then((symbology) => {
-                    result.forEach((geom) => {
-                        L.geoJson(JSON.parse(geom), {
-                            style: JSON.parse(JSON.parse(JSON.parse(symbology)))
-                        }).addTo(map.current!);
-                    });
+                result.forEach((geom) => {
+                    L.geoJson(JSON.parse(geom), {
+                        style: vectorLayers[lyr].layer.symbology
+                    }).addTo(map.current!);
                 });
                 setRedrawing(false);
                 emit("loading", 0);

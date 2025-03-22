@@ -10,6 +10,7 @@ import Map from "./components/Map";
 import ControlBar from "./components/ControlBar";
 import REPLHistoryItem from "./components/REPLHistoryItem";
 import LoadingBar from "./components/LoadingBar";
+import { Symbology } from "./types/Symbology.type";
 
 function App() {
     const dispatch = useDispatch();
@@ -23,12 +24,19 @@ function App() {
     let replInput = useRef<HTMLTextAreaElement>(null);
     let replForm = useRef<HTMLFormElement>(null);
 
-    listen<string>('add-vector-layer', (event) => {
+    listen<string>('add-vector-layer',  async (event) => {
+        const symbology = await invoke<string>("get_layer_symbology", {
+            table: event.payload[0],
+            schema: event.payload[1],
+        });
+
         const layer: VectorLayer = {
             name: event.payload[0],
             schema: event.payload[1],
-            visible: true
+            visible: true,
+            symbology: JSON.parse(JSON.parse(symbology)) as Symbology
         }
+
         dispatch(addVectorLayer({
             layer
         }));
