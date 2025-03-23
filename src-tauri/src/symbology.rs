@@ -55,6 +55,15 @@ async fn set_symbology(
         }
     };
 
+    let schema_and_name  = layer.split(".").collect::<Vec<&str>>();
+
+    let _ = state.app_handle.emit("remove-vector-layer", [layer.to_string()]);
+    if schema_and_name.len() == 2 {
+        let _ = state.app_handle.emit("add-vector-layer", [schema_and_name[1].to_string(), schema_and_name[0].to_string()]);
+    } else {
+        let _ = state.app_handle.emit("add-raster-layer", [schema_and_name[0].to_string()]);
+    }
+
     let _ = state.app_handle.emit("loading", 0);
     Ok(output)
 }

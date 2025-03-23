@@ -173,6 +173,11 @@ pub async fn generic_to_postgis_layer(
         }
     }
 
+    let _ = pgsql_client.execute(
+        format!("COMMENT ON TABLE public.{} IS '{{\"fillColor\": \"#d18a69\", \"fillOpacity\": 0.5, \"color\": \"#d18a69\", \"weight\": 1}}'", name).as_str(),
+        &[]
+    );
+
     let _ = fs::remove_file(format!("/tmp/tigre/{}.csv", name));
 }
 
