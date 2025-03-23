@@ -45,6 +45,7 @@ function Map() {
         if (Object.keys(vectorLayers).length === 0) {
             setRedrawing(false);
             emit("loading", 0);
+            return;
         }
 
         map.current.eachLayer((layer) => {
@@ -65,8 +66,6 @@ function Map() {
                         style: vectorLayers[lyr].layer.symbology
                     }).addTo(map.current!);
                 });
-                setRedrawing(false);
-                emit("loading", 0);
             }));
         }
 
@@ -80,13 +79,20 @@ function Map() {
                 });
         }, { once: true });
 
-        Promise.all(geomPromises);
+        Promise.all(geomPromises).then(() => {
+            setRedrawing(false);
+            emit("loading", 0);
+        });
     }
 
     useEffect(() => {
-        if (redrawing)
-            redraw()
-    }, [redrawing])
+        if (redrawing) {
+            const timeoutId = setTimeout(() => {
+                redraw();
+            }, 100); // 100ms debounce
+            return () => clearTimeout(timeoutId);
+        }
+    }, [redrawing]);
 
     useEffect(() => {
         if (!map.current) {

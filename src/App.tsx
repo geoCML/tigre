@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Output } from "./types/Output.type";
-import { addVectorLayer, removeAllVectorLayers, removeVectorLayer } from "./map.slice";
+import { addVectorLayer, removeAllVectorLayers } from "./map.slice";
 import { VectorLayer } from "./types/Layer.type";
 import { useDispatch } from "react-redux";
 import Map from "./components/Map";
@@ -41,13 +41,7 @@ function App() {
             layer
         }));
     });
-
-    listen<string>('remove-vector-layer',  async (event) => {
-        dispatch(removeVectorLayer({
-            name: event.payload[0]
-        }));
-    });
-
+   
     listen<string>('wipe-layers', (event) => {
         if (event.payload)
             dispatch(removeAllVectorLayers());
