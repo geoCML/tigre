@@ -19,6 +19,10 @@ export const MapSlice = createSlice({
       state.vectorLayers[action.payload.layer.name] = action.payload;
     },
 
+    removeVectorLayer: (state: any, action: AddLayerAction) => {
+      delete state.vectorLayers[action.payload.layer.name];
+    },
+
     addRasterLayer: (state: any, action: AddLayerAction) => {
       state.rasterLayers[action.payload.layer.name] = action.payload;
     },
@@ -37,7 +41,8 @@ export const {
     addVectorLayer,
     addRasterLayer,
     toggleVectorLayerVisibility,
-    removeAllVectorLayers
+    removeAllVectorLayers,
+    removeVectorLayer
 } = MapSlice.actions;
 
 export default MapSlice.reducer;
