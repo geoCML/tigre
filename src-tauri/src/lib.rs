@@ -7,6 +7,7 @@ pub mod repl;
 pub mod tools;
 pub mod gdal_utils;
 pub mod symbology;
+pub mod hytigre;
 
 use crate::appstate::AppState;
 use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, get_layer_symbology, PGConnection};
@@ -26,6 +27,7 @@ pub async fn run() {
                 app_handle: app.handle().clone(),
                 pgsql_connection: PGConnection::default(),
                 pgsql_client: Client::connect("", NoTls),
+                hytigre: false,
             });
 
             app.manage(state);
