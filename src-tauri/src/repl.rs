@@ -1,6 +1,7 @@
 use crate::add::add;
 use crate::appstate::AppState;
 use crate::db::db;
+use crate::hytigre::hytigre;
 use crate::output::Output;
 use crate::symbology::symbology;
 use crate::tools::{buffer, inspect, intersect};
@@ -117,6 +118,11 @@ pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Resul
             let symbology_output = symbology(&ast, &state).await.unwrap();
             output.errors.extend(symbology_output.errors);
             output.results.extend(symbology_output.results);
+        },
+        "hytigre" => {
+            let hytigre_output = hytigre(&ast, &state).await.unwrap();
+            output.errors.extend(hytigre_output.errors);
+            output.results.extend(hytigre_output.results);
         }
         "save" => println!("save"),
         &_ => {
