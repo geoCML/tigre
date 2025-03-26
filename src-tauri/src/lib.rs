@@ -27,7 +27,7 @@ pub async fn run() {
                 app_handle: app.handle().clone(),
                 pgsql_connection: PGConnection::default(),
                 pgsql_client: Client::connect("", NoTls),
-                hytigre: false,
+                hytigre: None,
             });
 
             app.manage(state);
