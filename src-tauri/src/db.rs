@@ -1,7 +1,7 @@
 use crate::appstate::AppState;
 use crate::output::Output;
 use crate::gdal_utils::postgis_layer_to_gpkg;
-use postgres::{Client, NoTls, Row};
+use postgres::{Client, NoTls};
 use std::collections::HashMap;
 use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex;
