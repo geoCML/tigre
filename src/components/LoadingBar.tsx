@@ -9,8 +9,8 @@ function LoadingBar() {
     });
 
     return (
-        <div className="p-2 w-full h-[5vh] bg-stone-800 text-stone-600 italic">
-        <div className="p-2 h-[1vh] bg-blue-600 rounded-md" style={{
+        <div className="p-2 w-full h-[3vh] bg-slate-800 text-slate-600 italic">
+        <div className="p-1 h-[2px] bg-blue-600 rounded-md" style={{
             transition: "width 0.1s ease-in-out",
             WebkitTransition: "width 0.1s ease-in-out",
             width: `${loadingPercent}%`,
