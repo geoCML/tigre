@@ -43,14 +43,14 @@ pub async fn get_layer_symbology(
     schema: &str,
     table: &str,
     app: tauri::AppHandle,
-) -> Result<String, ()> {
+) -> Result<String, String> {
     let state: State<'_, Mutex<AppState>> = app.app_handle().state();
 
     let mut pgsql_client =
         match Client::connect(&state.lock().await.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => {
-                panic!("ERROR! Lost connection to the database.");
+                return Err("ERROR! Lost connection to the database.".to_string());
             }
         };
     
@@ -59,7 +59,7 @@ pub async fn get_layer_symbology(
         &[],
     ) {
         Ok(layer_symbology) => layer_symbology,
-        Err(_err) => vec![]
+        Err(err) => return Err(format!("ERROR! Failed to query database: {}", err))
     };
 
     match layer_symbology.first() {
