@@ -1,6 +1,6 @@
 use crate::output::Output;
 use crate::appstate::AppState;
-use crate::db::get_as_json;
+use crate::db::{get_as_json, get_layer_symbology};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use tauri::State;
@@ -44,11 +44,35 @@ async fn geometry(req: web::Json<GeometryRequest>, app_handle: web::Data<tauri::
     })
 }
 
+#[derive(serde::Deserialize)]
+struct SymbologyRequest {
+    schema: String,
+    table: String
+}
+
+async fn symbology(req: web::Json<SymbologyRequest>, app_handle: web::Data<tauri::AppHandle>) -> impl Responder {
+    let res: String = match get_layer_symbology(&req.schema, &req.table, app_handle.get_ref().clone()).await {
+        Ok(val) => val,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(Response {
+                message: e,
+                result: None
+            });
+        }
+    };
+
+    HttpResponse::Ok().json(Response {
+        message: "Done.".to_string(),
+        result: Some(res)
+    })
+}
+
 pub async fn start_server(app_handle: tauri::AppHandle) -> std::io::Result<actix_web::dev::Server> {
     let server = HttpServer::new(move || App::new()
             .app_data(web::Data::new(app_handle.clone()))
             .route("/", web::get().to(index))
             .route("/geometry", web::get().to(geometry))
+            .route("/symbology", web::get().to(symbology))
         )
         .bind(("127.0.0.1", 8080))?
         .run();
