@@ -30,14 +30,14 @@ function TableView({ visible }: TableViewProps) {
 
     return (
         <div
-            className="z-[995] overflow-auto absolute bg-white border-solid border-stone-200 border-2 rounded-md text-black w-1/2 h-[25vh]"
+            className="z-[995] overflow-auto absolute bg-slate-700 border-solid border-slate-200 border-2 rounded-md text-white w-1/2 h-[25vh] text-sm"
             style={{
                 transform: `translate(${x}px, ${y}px)`,
                 display: visible ? "block" : "none"
             }}
         >
             <div
-                className="sticky bg-stone-300 top-0 left-0"
+                className="sticky bg-slate-800 top-0 left-0"
                 onMouseMove={(event) => {
                     if (drag) {
                         setX(x + event.movementX);
@@ -66,7 +66,7 @@ function TableView({ visible }: TableViewProps) {
                 {tabs.map((tab) => {
                     return (
                         <div className="grid grid-rows-1 grid-cols-2">
-                            <h2 className="bg-blue-200 p-1">{tab.name}</h2>
+                            <h2 className="bg-slate-950 p-1">{tab.name}</h2>
                             <div className="p-1 text-xs pt-2 italic">Showing {tab.data.length} rows of data.</div>
                         </div>
                     )
@@ -83,7 +83,7 @@ function TableView({ visible }: TableViewProps) {
                             {Object.keys(tab.data[0])
                                 .filter((col) => col != "geom")
                                 .map((col) => {
-                                    return (<th className={`p-2 w-[${100 / Object.keys(tab.data[0]).length - 1}%] border-solid border-blue-200 border-1 bg-blue-200`}>{col}</th>)
+                                    return (<th className={`p-2 w-[${100 / Object.keys(tab.data[0]).length - 1}%] border-solid border-slate-200 border-r-1 bg-slate-950`}>{col}</th>)
                                 })}
                         </thead>
                         <tbody>

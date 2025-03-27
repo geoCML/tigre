@@ -49,11 +49,11 @@ function App() {
 
     return (
       <main>
-        <div className="w-full h-[90vh] grid grid-cols-[20%_80%] grid-rows-1">
-            <div className="bg-stone-950 text-white overflow-y-auto">
+        <div className="w-full h-[95vh] grid grid-cols-[14%_86%] grid-rows-1">
+            <div className="bg-slate-950 text-white overflow-y-auto">
                 { history.map((elem) => elem) }
             </div>
-            <div className="grid grid-cols-1 grid-rows-[3vh_86vh]">
+            <div className="grid grid-cols-1 grid-rows-[3vh_95vh]">
                 <ControlBar />
                 <Map />
             </div>
@@ -77,7 +77,7 @@ function App() {
         <textarea id="repl-input" autoComplete="off" placeholder="Press Enter/Return to Execute REPL Command" autoFocus onKeyDown={(event) => {
             if (event && event.key === "Enter")
                 replForm.current!.requestSubmit();
-        }} ref={replInput} className="border-solid border-2 border-stone-800 w-full h-[5vh] bg-stone-300 text-black resize-none"></textarea>
+        }} ref={replInput} className="font-mono border-solid border-t-2 border-slate-800 w-full h-[25px] pl-1 bg-slate-950 text-slate-500 resize-none text-sm focus:outline-none focus:border-2 focus:border-blue-500 rounded-md"></textarea>
             <input type="submit" style={{ display: "none" }} />
         </form>
         <LoadingBar />
