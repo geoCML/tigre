@@ -1,5 +1,6 @@
 use crate::output::Output;
 use crate::appstate::AppState;
+use crate::db::get_as_json;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use tauri::State;
@@ -7,13 +8,47 @@ use actix_web::{App, HttpServer, Responder, HttpResponse};
 use tauri::async_runtime::spawn;
 use actix_web::web;
 
-async fn index() -> impl Responder {
-    HttpResponse::Ok().body("If you're reading this, HyTigre is active and the server is running!")
+#[derive(serde::Serialize)]
+struct Response {
+    message: String,
+    result: Option<String>
 }
 
-pub async fn start_server() -> std::io::Result<actix_web::dev::Server> {
-    let server = HttpServer::new(|| App::new()
+async fn index() -> impl Responder {
+    HttpResponse::Ok().json(Response {
+        message: "If you're reading this, HyTigre is active and the server is running!".to_string(),
+        result: None
+    })
+}
+
+#[derive(serde::Deserialize)]
+struct GeometryRequest {
+    table: String,
+    bb: Vec<Vec<f32>>
+}
+
+async fn geometry(req: web::Json<GeometryRequest>, app_handle: web::Data<tauri::AppHandle>) -> impl Responder {
+    let res: String = match get_as_json(&req.table, req.bb.clone(), app_handle.get_ref().clone()).await {
+        Ok(val) => val,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(Response {
+                message: e,
+                result: None
+            });
+        }
+    };
+
+    HttpResponse::Ok().json(Response {
+        message: "Done.".to_string(),
+        result: Some(res)
+    })
+}
+
+pub async fn start_server(app_handle: tauri::AppHandle) -> std::io::Result<actix_web::dev::Server> {
+    let server = HttpServer::new(move || App::new()
+            .app_data(web::Data::new(app_handle.clone()))
             .route("/", web::get().to(index))
+            .route("/geometry", web::get().to(geometry))
         )
         .bind(("127.0.0.1", 8080))?
         .run();
@@ -29,9 +64,11 @@ pub async fn hytigre_on(
         results: vec![],
     };
 
-    state.lock().await.hytigre = Some(spawn(async move { 
+    let mut state = state.lock().await;
+    let app_handle = state.app_handle.clone();
+    state.hytigre = Some(spawn(async move { 
         println!("Server started on port 8080");
-        start_server().await.unwrap().await
+        start_server(app_handle).await.unwrap().await
     }));
  
     output.results.push("HyTigre has been turned on.".to_string());
