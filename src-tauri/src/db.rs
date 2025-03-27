@@ -156,9 +156,9 @@ pub async fn get_as_json(
     table: &str,
     bb: Vec<Vec<f32>>,
     app: tauri::AppHandle,
-) -> Result<String, ()> {
+) -> Result<String, String> {
     if bb.len() != 2 {
-        panic!("Bounding box has fewer than 2 corners.");
+        return Err("Bounding box has fewer than 2 corners.".to_string());
     }
 
     let state: State<'_, Mutex<AppState>> = app.app_handle().state();
@@ -166,17 +166,22 @@ pub async fn get_as_json(
         match Client::connect(&state.lock().await.pgsql_connection.pg_string(), NoTls) {
             Ok(val) => val,
             Err(_) => {
-                panic!("ERROR! Lost connection to the database.");
+                return Err("ERROR! Lost connection to the database.".to_string());
             }
         };
 
-    let geojson_result = pgsql_client.query(
+    let geojson_result = match pgsql_client.query(
         format!("SELECT json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(ST_Intersection(ST_MakeEnvelope({}, {}, {}, {}), geom))::json) FROM {}", bb[0][0], bb[0][1], bb[1][0], bb[1][1], table).as_str(),
         &[],
-    );
+    ) {
+        Ok(val) => val,
+        Err(err) => {
+            return Err(format!("ERROR! Failed to query database: {}", err));
+        }
+    };
 
     let mut json_rows: Vec<String> = vec![];
-    for row in geojson_result.unwrap() {
+    for row in geojson_result {
         for col in row.columns() {
             json_rows.push(row.get::<&str, serde_json::Value>(col.name()).to_string());
         }
