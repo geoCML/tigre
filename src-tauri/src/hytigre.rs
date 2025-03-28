@@ -1,9 +1,9 @@
 use crate::output::Output;
 use crate::appstate::AppState;
-use crate::db::{get_as_json, get_layer_symbology};
+use crate::db::{get_as_json, get_layer_symbology, inspect_layer, inspect_layer_at_location};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use tauri::State;
+use tauri::{State, Manager};
 use actix_web::{App, HttpServer, Responder, HttpResponse};
 use tauri::async_runtime::spawn;
 use actix_web::web;
@@ -16,7 +16,7 @@ struct Response {
 
 async fn index() -> impl Responder {
     HttpResponse::Ok().json(Response {
-        message: "If you're reading this, HyTigre is active and the server is running!".to_string(),
+        message: "Congratulations! If you're reading this, HyTigre is active and the server is running!".to_string(),
         result: None
     })
 }
@@ -67,12 +67,62 @@ async fn symbology(req: web::Json<SymbologyRequest>, app_handle: web::Data<tauri
     })
 }
 
+#[derive(serde::Deserialize)]
+struct InspectRequest {
+    table: String
+}
+
+async fn inspect(req: web::Json<InspectRequest>, app_handle: web::Data<tauri::AppHandle>) -> impl Responder {
+    let state: State<'_, Mutex<AppState>> = app_handle.get_ref().state();
+    let res: String = match inspect_layer(&req.table, &state.lock().await.pgsql_connection).await {
+        Ok(val) => val,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(Response {
+                message: e,
+                result: None
+            });
+        }
+    };
+
+    HttpResponse::Ok().json(Response {
+        message: "Done.".to_string(),
+        result: Some(res)
+    })
+}
+
+#[derive(serde::Deserialize)]
+struct InspectAtLocationRequest {
+    table: String,
+    location: String
+}
+
+async fn inspect_location(req: web::Json<InspectAtLocationRequest>, app_handle: web::Data<tauri::AppHandle>) -> impl Responder {
+    let state: State<'_, Mutex<AppState>> = app_handle.get_ref().state();
+    let res: String = match inspect_layer_at_location(&req.table, &state.lock().await.pgsql_connection, &req.location).await {
+        Ok(val) => val,
+        Err(e) => {
+            return HttpResponse::BadRequest().json(Response {
+                message: e,
+                result: None
+            });
+        }
+    };
+
+    HttpResponse::Ok().json(Response {
+        message: "Done.".to_string(),
+        result: Some(res)
+    })
+}
+
+
 pub async fn start_server(app_handle: tauri::AppHandle) -> std::io::Result<actix_web::dev::Server> {
     let server = HttpServer::new(move || App::new()
-            .app_data(web::Data::new(app_handle.clone()))
+            .app_data(web::Data::new(app_handle.app_handle().clone()))
             .route("/", web::get().to(index))
             .route("/geometry", web::get().to(geometry))
             .route("/symbology", web::get().to(symbology))
+            .route("/inspect", web::get().to(inspect))
+            .route("/inspect-location", web::get().to(inspect_location))
         )
         .bind(("127.0.0.1", 8080))?
         .run();
@@ -90,8 +140,14 @@ pub async fn hytigre_on(
 
     let mut state = state.lock().await;
     let app_handle = state.app_handle.clone();
+    match &state.hytigre {
+        Some(handle) => {
+            handle.abort();
+        }
+        None => {}
+    };
+
     state.hytigre = Some(spawn(async move { 
-        println!("Server started on port 8080");
         start_server(app_handle).await.unwrap().await
     }));
  

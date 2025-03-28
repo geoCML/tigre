@@ -1,5 +1,6 @@
 use crate::appstate::AppState;
 use crate::output::Output;
+use crate::db::{inspect_layer, inspect_layer_at_location};
 use postgres::{Client, NoTls};
 use std::collections::HashMap;
 use tauri::{Emitter, State};
@@ -14,70 +15,47 @@ pub async fn inspect(
         results: vec![],
     };
 
+    let state = state.lock().await;
+
     if ast["args"].is_empty() {
         output
             .errors
             .push("ERROR! No arguments provided for command 'inspect'.".to_string())
     } else {
-        let state = state.lock().await;
         let _ = state.app_handle.emit("loading", 25);
         let layer = ast["args"][0];
-        let layer_split = layer.split(".").collect::<Vec<&str>>();
-        let short_layer = match layer_split.len() {
-            2 => layer_split[1],
-            _ => layer_split[0],
-        };
-
-        let mut pgsql_client = match Client::connect(&state.pgsql_connection.pg_string(), NoTls) {
-            Ok(val) => val,
-            Err(_) => panic!("ERROR! Lost connection to the database."),
-        };
 
         let _ = state.app_handle.emit("loading", 70);
         if ast["args"].len() == 2 {
             let location = ast["args"][1];
 
-            match pgsql_client.query(
-                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {} WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint({}), 0)) = TRUE) dta", short_layer, layer, location).as_str(),
-                &[]
-            ) {
+            let result = inspect_layer_at_location(layer, &state.pgsql_connection, location).await;
+            match result {
                 Ok(val) => {
-                    match val.first() {
-                        Some(row) => {
-                            let _ = state.app_handle.emit("loading", 90);
-                            let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()).as_str()]);
-                            output.results.push("Done.".to_string());
-                        },
-                        None => output.results.push("Found 0 results.".to_string())
-                    }
+                    let _ = state.app_handle.emit("loading", 90);
+                    let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", val).as_str()]);
+                    output.results.push("Done.".to_string());
                 },
-                Err(err) => output.errors.push(format!("ERROR! Couldn't inspect layer: {}", err))
+                Err(err) => { 
+                    output.errors.push(format!("ERROR! Couldn't inspect layer: {}", err));
+                }
             };
         } else {
-            match pgsql_client.query(
-                format!("SELECT to_jsonb(dta) FROM (SELECT json_agg(sub) FROM (SELECT * FROM {} ORDER BY geom LIMIT 1000) sub) dta", layer)
-                    .as_str(),
-                &[],
-            ) {
+            let result = inspect_layer(&layer, &state.pgsql_connection).await;
+            match result {
                 Ok(val) => {
-                    match val.first() {
-                        Some(row) => {
-                            let _ = state.app_handle.emit("loading", 90);
-                            let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", row.get::<usize, serde_json::Value>(0).to_string()).as_str()]);
-                            output.results.push("Done.".to_string());
-                        },
-                        None => output.results.push("Found 0 results.".to_string())
-                    }
+                    let _ = state.app_handle.emit("loading", 90);
+                    let _ = state.app_handle.emit("open-table", [layer, format!("{:?}", val).as_str()]);
+                    output.results.push("Done.".to_string());
                 },
-                Err(err) => output
-                    .errors
-                    .push(format!("ERROR! Couldn't inspect layer: {}", err)),
+                Err(err) => { 
+                    output.errors.push(format!("ERROR! Couldn't inspect layer: {}", err));
+                }
             };
         }
-
-        let _ = state.app_handle.emit("loading", 0);
     }
 
+    let _ = state.app_handle.emit("loading", 0);
     Ok(output)
 }
 

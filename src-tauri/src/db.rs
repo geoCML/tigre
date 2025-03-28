@@ -1,42 +1,101 @@
 use crate::appstate::AppState;
-use crate::output::Output;
 use crate::gdal_utils::postgis_layer_to_gpkg;
-use postgres::{Client, NoTls};
-use std::collections::HashMap;
-use tauri::{Emitter, Manager, State};
-use tokio::sync::Mutex;
-use rusqlite::Connection;
-use rusqlite::fallible_iterator::FallibleIterator;
+use crate::output::Output;
 use geozero::wkb::GpkgWkb;
 use geozero::ToJson;
+use postgres::{Client, NoTls};
+use rusqlite::fallible_iterator::FallibleIterator;
+use rusqlite::Connection;
+use std::collections::HashMap;
 use std::fs;
+use tauri::{Emitter, Manager, State};
+use tokio::sync::Mutex;
 
-#[derive(Default)]
-#[derive(Clone)]
-#[derive(PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct PGConnection {
     username: String,
     password: String,
     host: String,
     port: String,
     db: String,
-    optional_params: Option<String>
+    optional_params: Option<String>,
 }
 
 impl PGConnection {
     pub fn pg_string(&self) -> String {
         let optional_params = match &self.optional_params {
             Some(params) => &params,
-            None => ""
+            None => "",
         };
 
-        format!("postgresql://{}:{}@{}:{}/{}?{}", &self.username, &self.password, &self.host, &self.port, &self.db, optional_params)
+        format!(
+            "postgresql://{}:{}@{}:{}/{}?{}",
+            &self.username, &self.password, &self.host, &self.port, &self.db, optional_params
+        )
     }
 
     pub fn gdal_string(&self) -> String {
-        format!("PG:dbname={} host={} port={} user={} password={}", &self.db, &self.host, &self.port, &self.username, &self.password)
+        format!(
+            "PG:dbname={} host={} port={} user={} password={}",
+            &self.db, &self.host, &self.port, &self.username, &self.password
+        )
     }
 }
+
+pub async fn inspect_layer(
+    table: &str,
+    pgsql_connection: &PGConnection,
+) -> Result<String, String> {
+    let mut pgsql_client = match Client::connect(&pgsql_connection.pg_string(), NoTls) {
+        Ok(val) => val,
+        Err(_) => return Err("ERROR! Lost connection to the database.".to_string()),
+    };
+
+    match pgsql_client.query(
+        format!("SELECT to_jsonb(dta) FROM (SELECT json_agg(sub) FROM (SELECT * FROM {} ORDER BY geom LIMIT 1000) sub) dta", table)
+            .as_str(),
+        &[],
+    ) {
+        Ok(val) => {
+            match val.first() {
+                Some(row) => Ok(row.get::<usize, serde_json::Value>(0).to_string()),
+                None => return Err("Found 0 results.".to_string()),
+            }
+        },
+        Err(err) => return Err(format!("ERROR! Couldn't inspect layer: {}", err)),
+    }
+}
+
+pub async fn inspect_layer_at_location(
+    table: &str,
+    pgsql_connection: &PGConnection,
+    location: &str,
+) -> Result<String, String> {
+    let mut pgsql_client = match Client::connect(&pgsql_connection.pg_string(), NoTls) {
+        Ok(val) => val,
+        Err(_) => return Err("ERROR! Lost connection to the database.".to_string()),
+    };
+
+    let table_split = table.split(".").collect::<Vec<&str>>();
+    let short_table = match table_split.len() {
+        2 => table_split[1],
+        _ => table_split[0],
+    };
+
+    match pgsql_client.query(
+        format!("SELECT to_jsonb(dta) FROM (SELECT json_agg({}) FROM {} WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint({}), 0)) = TRUE) dta", short_table, table, location).as_str(),
+        &[],
+    ) {
+        Ok(val) => {
+            match val.first() {
+                Some(row) => Ok(row.get::<usize, serde_json::Value>(0).to_string()),
+                None => return Err("Found 0 results.".to_string()),
+            }
+        },
+        Err(err) => return Err(format!("ERROR! Couldn't inspect layer: {}", err)),
+    }
+}
+
 
 #[tauri::command]
 pub async fn get_layer_symbology(
@@ -53,51 +112,53 @@ pub async fn get_layer_symbology(
                 return Err("ERROR! Lost connection to the database.".to_string());
             }
         };
-    
+
     let layer_symbology: Vec<postgres::Row> = match pgsql_client.query(
-        format!("SELECT to_json(pg_catalog.obj_description('{}.{}'::regclass, 'pg_class'))::text", schema, table).as_str(),
+        format!(
+            "SELECT to_json(pg_catalog.obj_description('{}.{}'::regclass, 'pg_class'))::text",
+            schema, table
+        )
+        .as_str(),
         &[],
     ) {
         Ok(layer_symbology) => layer_symbology,
-        Err(err) => return Err(format!("ERROR! Failed to query database: {}", err))
+        Err(err) => return Err(format!("ERROR! Failed to query database: {}", err)),
     };
 
     match layer_symbology.first() {
         Some(row) => Ok(row.get::<usize, String>(0)),
-        None => Ok("{}".to_string())
-    } 
+        None => Ok("{}".to_string()),
+    }
 }
 
 #[tauri::command]
-pub async fn get_as_json_gpkg(
-    schema: &str,
-    table: &str,
-) -> Result<Vec<String>, ()> {
-    let sqlite_connection = match Connection::open(format!("/tmp/tigre/{}.{}.gpkg", schema, table)) {
+pub async fn get_as_json_gpkg(schema: &str, table: &str) -> Result<Vec<String>, ()> {
+    let sqlite_connection = match Connection::open(format!("/tmp/tigre/{}.{}.gpkg", schema, table))
+    {
         Ok(val) => val,
-        Err(_) => panic!("ERROR! Couldn't open gpkg.")
+        Err(_) => panic!("ERROR! Couldn't open gpkg."),
     };
 
-    match sqlite_connection.prepare(
-        format!("SELECT hex(geom) FROM {}", table).as_str()
-    ) {
+    match sqlite_connection.prepare(format!("SELECT hex(geom) FROM {}", table).as_str()) {
         Ok(mut val) => {
             return match val.query([]) {
-                Ok(rows) => Ok(rows.map(|row| {
-                    let wkb_data = hex::decode(row.get::<usize, String>(0)?).unwrap();
-                    let wkb = GpkgWkb(wkb_data);
-                    match wkb.to_json() {
-                        Ok(json) => Ok(json),
-                        Err(_) => Ok("[]".to_string())
-                    }
-                }).collect().expect("No data.")),
-                Err(_) => Ok(vec![])
+                Ok(rows) => Ok(rows
+                    .map(|row| {
+                        let wkb_data = hex::decode(row.get::<usize, String>(0)?).unwrap();
+                        let wkb = GpkgWkb(wkb_data);
+                        match wkb.to_json() {
+                            Ok(json) => Ok(json),
+                            Err(_) => Ok("[]".to_string()),
+                        }
+                    })
+                    .collect()
+                    .expect("No data.")),
+                Err(_) => Ok(vec![]),
             };
-        },
-        Err(err) => panic!("ERROR! Couldn't query gpkg: {}", err)
+        }
+        Err(err) => panic!("ERROR! Couldn't query gpkg: {}", err),
     };
 }
-
 
 #[tauri::command]
 pub async fn get_as_wkt(
@@ -224,7 +285,7 @@ async fn db_connect(
         host: ast["args"][3].to_string(),
         port: ast["args"][4].to_string(),
         db: ast["args"][5].to_string(),
-        optional_params: None
+        optional_params: None,
     };
 
     if ast["args"].len() == 7 {
@@ -246,13 +307,14 @@ async fn db_connect(
                             let schema = row.get::<usize, &str>(1);
                             let name = row.get::<usize, &str>(0);
 
+                            postgis_layer_to_gpkg(
+                                name,
+                                schema,
+                                state.pgsql_connection.gdal_string(),
+                            )
+                            .await;
 
-                            postgis_layer_to_gpkg(name, schema, state.pgsql_connection.gdal_string()).await;
-
-                            let _ = &state.app_handle.emit(
-                                "add-vector-layer",
-                                [name, schema],
-                            );
+                            let _ = &state.app_handle.emit("add-vector-layer", [name, schema]);
                         }
                     }
                     let _ = &state.app_handle.emit("loading", 90);
