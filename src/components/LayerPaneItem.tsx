@@ -140,7 +140,7 @@ function LayerPaneItem(props: LayerPaneItemProps) {
                                 color: (document.getElementById("border-color") as HTMLInputElement).value,
                                 weight: parseFloat((document.getElementById("border-width") as HTMLInputElement).value)
                             } as Symbology;
-                            (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `symbology set ${props.item.layer.schema}.${props.item.layer.name} '${JSON.stringify(symbology)}'`;
+                            (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `symbology set ${props.item.layer.schema}.${props.item.layer.name} \`${JSON.stringify(symbology)}\``;
                             (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
                         }} />
                     </div>

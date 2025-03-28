@@ -5,7 +5,7 @@ export function ServerConfigButton() {
 
     return (
         <div className="btn p-2 border border-solid border-slate-700 w-8">
-            <div className="z-[999] rounded-md w-1/3 h-[57vh] text-white p-5 absolute top-1/2 left-1/2 transform -translate-x-1/3 -translate-y-1/2 bg-slate-950 text-center opacity-90" style={{
+            <div className="z-[999] rounded-md w-1/3 h-[56vh] text-white p-5 absolute top-1/2 left-1/2 transform -translate-x-1/3 -translate-y-1/2 bg-slate-950 text-center opacity-90" style={{
                 visibility: formVisible ? "visible" : "hidden"
             }}>
                 <div className="grid grid-rows-1 grid-cols-[98%_2%]">
@@ -19,19 +19,20 @@ export function ServerConfigButton() {
                 </div>
                 <form className="grid grid-cols-1 grid-rows-2 justify-items-center text-sm" onSubmit={ (event) => {
                     event.preventDefault();
+                    const name = (document.getElementById("server-name") as HTMLInputElement).value;
                     const description = (document.getElementById("server-description") as HTMLInputElement).value;
                     const contactEmail = (document.getElementById("server-contact-email") as HTMLInputElement).value;
                     const contactPhone = (document.getElementById("server-contact-phone") as HTMLInputElement).value;
                     const contactWebsite = (document.getElementById("server-contact-website") as HTMLInputElement).value;
 
-                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db describe '${description}' ${contactEmail} ${contactPhone} ${contactWebsite}`;
+                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `db describe \`${name}\` \`${description}\` ${contactEmail} \`${contactPhone}\` ${contactWebsite}`;
                     (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
 
                     setFormVisible(false);
                 }}>
                     <div className="grid grid-cols-1 grid-rows-auto">
                         <label htmlFor="server-name" className="text-slate-700 mt-2">Server Name</label>
-                        <input id="server-name" className="m-1 p-1 w-[25vw] bg-slate-800 text-white border-solid border-2 border-slate-800 rounded-md" placeholder="My Server" type="text" /> 
+                        <input id="server-name" className="m-1 p-1 w-[25vw] bg-slate-800 text-white border-solid border-2 border-slate-800 rounded-md" placeholder="My Server" type="text" />
 
                         <label htmlFor="server-description" className="text-slate-700 mt-4">Description</label>
                         <textarea id="server-description" className="resize-none m-1 p-1 w-[25vw] h-[10vh] bg-slate-800 text-white border-solid border-2 border-slate-800 rounded-md" placeholder="A long form description of the server and that data it hosts." /> 
