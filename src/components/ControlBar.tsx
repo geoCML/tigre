@@ -1,6 +1,7 @@
 import AddLayerButton from "./AddLayerButton";
 import DBConnectButton from "./DBConnectButton";
 import SaveButton from "./SaveButton";
+import ServerConfigButton from "./ServerConfigButton";
 
 function ControlBar() {
     return (
@@ -8,6 +9,7 @@ function ControlBar() {
             <SaveButton />
             <DBConnectButton />
             <AddLayerButton />
+            <ServerConfigButton />
         </div>
     )
 }
