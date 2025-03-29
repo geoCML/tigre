@@ -8,7 +8,7 @@ function AddLayerButton() {
             });
 
             if (selected) {
-                (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `add layer '${selected}'`;
+                (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `add layer \`${selected}\``;
                 (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
             }
         } }>

@@ -74,7 +74,7 @@ function Map() {
             Object.keys(vectorLayers)
                 .filter((lyr) => vectorLayers[lyr].layer.visible)
                 .forEach((lyr) => {
-                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `inspect ${lyr} '${event.latlng.lng}, ${event.latlng.lat}'`;
+                    (document.getElementById("repl-input") as HTMLTextAreaElement)!.value = `inspect ${lyr} \`${event.latlng.lng}, ${event.latlng.lat}\``;
                     (document.getElementById("repl-form") as HTMLFormElement)!.requestSubmit();
                 });
         }, { once: true });

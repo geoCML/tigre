@@ -42,10 +42,7 @@ impl PGConnection {
     }
 }
 
-pub async fn inspect_layer(
-    table: &str,
-    pgsql_connection: &PGConnection,
-) -> Result<String, String> {
+pub async fn inspect_layer(table: &str, pgsql_connection: &PGConnection) -> Result<String, String> {
     let mut pgsql_client = match Client::connect(&pgsql_connection.pg_string(), NoTls) {
         Ok(val) => val,
         Err(_) => return Err("ERROR! Lost connection to the database.".to_string()),
@@ -95,7 +92,6 @@ pub async fn inspect_layer_at_location(
         Err(err) => return Err(format!("ERROR! Couldn't inspect layer: {}", err)),
     }
 }
-
 
 #[tauri::command]
 pub async fn get_layer_symbology(
@@ -251,6 +247,59 @@ pub async fn get_as_json(
     Ok(format!("[{}]", json_rows.join(",")))
 }
 
+async fn describe(
+    ast: &HashMap<&str, Vec<&str>>,
+    state: &State<'_, Mutex<AppState>>,
+) -> Result<Output, ()> {
+    let mut output = Output {
+        errors: vec![],
+        results: vec![],
+    };
+
+    let mut state = state.lock().await;
+    let _ = &state.app_handle.emit("loading", 10);
+
+    if ast["args"].len() < 6 {
+        output
+            .errors
+            .push("ERROR! You must provide a name, description, contact email, contact phone, and contact website.".to_string());
+        return Ok(output);
+    }
+
+    let name = ast["args"][1].to_string();
+    let description = ast["args"][2].to_string();
+    let contact_email = ast["args"][3].to_string();
+    let contact_phone = ast["args"][4].to_string();
+    let contact_website = ast["args"][5].to_string();
+
+    let _ = &state.app_handle.emit("loading", 50);
+    let client = Client::connect(&state.pgsql_connection.pg_string(), NoTls);
+
+    match client {
+        Ok(mut client) => {
+            let _ = client.execute(
+                "CREATE TABLE IF NOT EXISTS hytigre_description (id SERIAL PRIMARY KEY, name TEXT, description TEXT, contact_email TEXT, contact_phone TEXT, contact_website TEXT)",
+                &[]
+            );
+            let _ = client.execute("DELETE FROM hytigre_description", &[]);
+            let _ = client.execute(
+                "INSERT INTO hytigre_description (name, description, contact_email, contact_phone, contact_website) VALUES ($1, $2, $3, $4, $5)",
+                &[&name, &description, &contact_email, &contact_phone, &contact_website]
+            );
+            let _ = &state.app_handle.emit("loading", 90);
+            output.results.push("Done.".to_string());
+        }
+        Err(_) => {
+            output
+                .errors
+                .push("ERROR! Failed to connect to database.".to_string());
+        }
+    }
+
+    let _ = &state.app_handle.emit("loading", 0);
+    Ok(output)
+}
+
 async fn db_connect(
     ast: &HashMap<&str, Vec<&str>>,
     state: &State<'_, Mutex<AppState>>,
@@ -298,7 +347,7 @@ async fn db_connect(
 
     match client {
         Ok(mut client) => {
-            let tables_result = &client.query("SELECT table_name, table_schema FROM information_schema.tables WHERE table_schema != 'pg_catalog' AND table_schema != 'information_schema' AND table_name != 'geometry_columns' AND table_name != 'geography_columns' AND table_name != 'spatial_ref_sys' AND table_name != 'raster_overviews' AND table_name != 'raster_columns'", &[]);
+            let tables_result = &client.query("SELECT table_name, table_schema FROM information_schema.tables WHERE table_schema != 'pg_catalog' AND table_schema != 'information_schema' AND table_name != 'geometry_columns' AND table_name != 'geography_columns' AND table_name != 'spatial_ref_sys' AND table_name != 'raster_overviews' AND table_name != 'raster_columns' AND table_name != 'hytigre_description'", &[]);
             match tables_result {
                 Ok(tables_result) => {
                     let _ = &state.app_handle.emit("loading", 75);
@@ -365,6 +414,11 @@ pub async fn db(
                 output
                     .results
                     .extend(vec![state.lock().await.pgsql_connection.pg_string()]);
+            }
+            "describe" => {
+                let db_describe_output = describe(ast, state).await.unwrap();
+                output.errors.extend(db_describe_output.errors);
+                output.results.extend(db_describe_output.results);
             }
             &_ => output
                 .errors

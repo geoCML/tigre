@@ -6,43 +6,37 @@ use crate::output::Output;
 use crate::symbology::symbology;
 use crate::tools::{buffer, inspect, intersect};
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::string::String;
 use tauri::{Manager, State};
 use tokio::sync::Mutex;
 
 #[tauri::command]
 pub fn read(cmd: &str) -> HashMap<&str, Vec<String>> {
-    // Setup ast and parse tokens
     let mut ast: HashMap<&str, Vec<String>> = HashMap::new();
-    let mut tokens: Vec<String> = cmd
-        .split_whitespace()
-        .collect::<Vec<&str>>()
-        .iter()
-        .map(|tkn| tkn.to_string())
-        .collect();
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current_token = String::new();
+    let mut in_quotes = false;
 
-    let left_anchor: usize = tokens
-        .iter()
-        .position(|elem| elem.starts_with("\'"))
-        .unwrap_or(0);
-
-    let right_anchor: usize = tokens
-        .iter()
-        .position(|elem| elem.ends_with("\'"))
-        .unwrap_or(0);
-
-    if left_anchor + right_anchor > 0 {
-        let mut string_token: String = String::new();
-        string_token =
-            Vec::from_iter(tokens[left_anchor..right_anchor + 1].iter().cloned()).join(" ");
-        string_token.remove(0);
-        string_token.remove(string_token.len() - 1);
-
-        let mut replacement_vector: Vec<String> =
-            vec![String::new(); (right_anchor - left_anchor) + 1];
-        replacement_vector[0] = string_token;
-        tokens.splice(left_anchor..right_anchor + 1, replacement_vector);
+    for c in cmd.chars() {
+        match c {
+            '`' => {
+                if in_quotes {
+                    tokens.push(current_token.clone());
+                    current_token.clear();
+                }
+                in_quotes = !in_quotes;
+            }
+            ' ' if !in_quotes => {
+                if !current_token.is_empty() {
+                    tokens.push(current_token.clone());
+                    current_token.clear();
+                }
+            }
+            _ => current_token.push(c),
+        }
+    }
+    if !current_token.is_empty() {
+        tokens.push(current_token);
     }
 
     // Insert command into ast
@@ -62,7 +56,6 @@ pub fn read(cmd: &str) -> HashMap<&str, Vec<String>> {
         }
         args.push(tokens[i].clone());
     }
-
     ast.insert("args", args);
 
     // Collect optional arguments
@@ -77,8 +70,6 @@ pub fn read(cmd: &str) -> HashMap<&str, Vec<String>> {
 
     ast
 }
-
-pub async fn foo() {}
 
 #[tauri::command]
 pub async fn eval(ast: HashMap<&str, Vec<&str>>, app: tauri::AppHandle) -> Result<String, ()> {
