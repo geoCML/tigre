@@ -1,12 +1,6 @@
 use gdal::{Dataset, DriverManager};
 use gdal::spatial_ref::SpatialRef;
 use gdal::vector::{LayerOptions, LayerAccess, Geometry};
-use gdal_sys::GDALVectorTranslate;
-use std::fs;
-use std::fs::File;
-use std::ffi::CString;
-use std::ptr::{null, null_mut};
-use std::io::BufRead;
 
 pub async fn generic_to_postgis_layer(
     dataset: Dataset,
@@ -16,21 +10,6 @@ pub async fn generic_to_postgis_layer(
     let mut fields: Vec<String> = vec![];
     let mut geometries: Vec<Geometry> = vec![];
     let mut geometry_type = String::new();
-
-    unsafe {
-        let mut raw_dataset: Vec<gdal_sys::GDALDatasetH> = vec![dataset.c_dataset()];
-
-        GDALVectorTranslate(
-            //null(),
-            //CString::new(state.lock().unwrap().pgsql_connection.clone()).unwrap().as_ptr(),
-            CString::new(format!("/tmp/tigre/{}.csv", name)).unwrap().as_ptr(),
-            null_mut(),
-            1,
-            raw_dataset.as_mut_ptr(),
-            null(),
-            null_mut(),
-        );
-    };
 
     dataset.layers()
         .for_each(| mut lyr | {
@@ -80,105 +59,93 @@ pub async fn generic_to_postgis_layer(
         });
 
     // CREATE TABLE
-    let create_layer_result = pgsql_client.execute(
+    match pgsql_client.execute(
         format!(
             "CREATE TABLE {} ({}, geom geometry)",
             name,
-            fields.join(", ")
-        )
-        .as_str(),
+            fields.join(", ").to_lowercase()
+        ).as_str(),
         &[],
-    );
-    match create_layer_result {
+    ) {
         Ok(_) => (),
         Err(_) => {
-            let _ = fs::remove_file(format!("/tmp/tigre/{}.csv", &name));
             panic!("ERROR! Failed to create layer in database.");
         }
     };
 
     // SET GEOMETRY TYPE
-    let set_geometry_query = match geometries[0].spatial_ref() {
-        Some(val) => {
-            let srid = match val.auth_code() {
-                Ok(val) => val,
-                Err(_) => 4326
-            };
-
-            format!(
-                "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({}, {})",
-                name,
-                geometry_type,
-                srid
-            )
-        },
-        None => format!(
-            "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({})",
-            name, geometry_type
-        ),
-    };
-
-    let set_geometry_result = pgsql_client.execute(set_geometry_query.as_str(), &[]);
-    match set_geometry_result {
+    match pgsql_client.execute(
+        format!(
+            "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({}, 0)",
+            name,
+            geometry_type
+        ).as_str(),
+        &[]
+    ) {
         Ok(_) => (),
         Err(_) => {
             panic!("ERROR! Failed to set geometry information.");
         }
     };
 
-    // COPY FROM CSV -> NEW PGSQL TABLE
-    let csv_file = File::open_buffered(format!("/tmp/tigre/{}.csv", name).as_str()).unwrap();
-    let mut cols = String::new();
-    let mut queries: Vec<String> = vec![];
+    // COPY FROM GENERIC DATASET -> NEW PGSQL TABLE
+    dataset.layers().for_each(| mut lyr | {
+        let mut queries: Vec<String> = vec![];
 
-    for (line, i) in csv_file.lines().zip(1..) {
-        if i == 1 {
-            cols = line
-                .unwrap()
-                .clone()
-                .as_str()
-                .split(",")
-                .collect::<Vec<_>>()
+        let cols = lyr.defn()
+            .fields()
+            .map(|field| {
+                return format!("\"{}\"", field.name());
+            })
+            .collect::<Vec<String>>();
+
+        let mut i = 0;
+        lyr.features().for_each(| feature | {
+            let values = feature.fields()
+                .filter(|field| field.0 != "geom")
+                .map(|field| {
+                    return match field.1 {
+                        Some(gdal::vector::FieldValue::StringValue(val)) => format!("\'{}\'", val),
+                        Some(gdal::vector::FieldValue::IntegerValue(val)) => format!("{}", val),
+                        Some(gdal::vector::FieldValue::DateValue(val)) => format!("\'{}\'", val),
+                        Some(gdal::vector::FieldValue::RealValue(val)) => format!("{}", val),
+                        Some(gdal::vector::FieldValue::Integer64Value(val)) => format!("{}", val),
+                        Some(gdal::vector::FieldValue::Integer64ListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
+                        Some(gdal::vector::FieldValue::IntegerListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
+                        Some(gdal::vector::FieldValue::RealListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
+                        Some(gdal::vector::FieldValue::DateTimeValue(val)) => format!("\'{}\'", val),
+                        Some(gdal::vector::FieldValue::StringListValue(val)) => format!("\'{}\'", val.join(", ")),
+                        None => "NULL".to_string()
+                    };
+                })
+                .collect::<Vec<String>>()
                 .join(", ");
 
-            continue;
-        }
-        let the_line = line
-            .unwrap()
-            .clone()
-            .as_str()
-            .split(",")
-            .collect::<Vec<_>>()
-            .into_iter()
-            .map(|item| {
-                return format!("\'{}\'", item);
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+            queries.push(format!(
+                "INSERT INTO {} ({}, \"geom\") VALUES ({}, '{:?}')",
+                name,
+                cols.join(", ").to_lowercase(),
+                values,
+                geometries[i]
+            ));
+            i += 1;
+        });
 
-        queries.push(format!(
-            "INSERT INTO {} ({}, geom) VALUES ({}, '{}')",
-            name,
-            cols,
-            the_line,
-            geometries[i - 2].wkt().unwrap()
-        ))
-    }
-
-    let insert_result = pgsql_client.batch_execute(queries.join(";").as_str());
-    match insert_result {
-        Ok(_) => (),
-        Err(_) => {
-            panic!("ERROR! Failed to load raw data into database table.");
-        }
-    }
+        queries.iter().for_each(|query| {
+            let insert_result = pgsql_client.batch_execute(query.as_str());
+            match insert_result {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("ERROR! Failed to load raw data into database table: {}", err);
+                }
+            }
+        });
+    });
 
     let _ = pgsql_client.execute(
         format!("COMMENT ON TABLE public.{} IS '{{\"fillColor\": \"#d18a69\", \"fillOpacity\": 0.5, \"color\": \"#d18a69\", \"weight\": 1}}'", name).as_str(),
         &[]
     );
-
-    let _ = fs::remove_file(format!("/tmp/tigre/{}.csv", name));
 }
 
 pub async fn generic_to_gpkg(dataset_name: &str) -> Result<Vec<String>, ()> {
