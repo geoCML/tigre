@@ -1,11 +1,11 @@
-use gdal::{Dataset, DriverManager};
 use gdal::spatial_ref::SpatialRef;
-use gdal::vector::{LayerOptions, LayerAccess, Geometry};
+use gdal::vector::{Geometry, LayerAccess, LayerOptions};
+use gdal::{Dataset, DriverManager};
 
 pub async fn generic_to_postgis_layer(
     dataset: Dataset,
     mut pgsql_client: postgres::Client,
-    name: &str
+    name: &str,
 ) {
     let mut fields: Vec<String> = vec![];
     let mut geometries: Vec<Geometry> = vec![];
@@ -64,7 +64,8 @@ pub async fn generic_to_postgis_layer(
             "CREATE TABLE {} ({}, geom geometry)",
             name,
             fields.join(", ").to_lowercase()
-        ).as_str(),
+        )
+        .as_str(),
         &[],
     ) {
         Ok(_) => (),
@@ -77,10 +78,10 @@ pub async fn generic_to_postgis_layer(
     match pgsql_client.execute(
         format!(
             "ALTER TABLE \"{}\" ALTER COLUMN geom TYPE Geometry({}, 0)",
-            name,
-            geometry_type
-        ).as_str(),
-        &[]
+            name, geometry_type
+        )
+        .as_str(),
+        &[],
     ) {
         Ok(_) => (),
         Err(_) => {
@@ -89,10 +90,11 @@ pub async fn generic_to_postgis_layer(
     };
 
     // COPY FROM GENERIC DATASET -> NEW PGSQL TABLE
-    dataset.layers().for_each(| mut lyr | {
+    dataset.layers().for_each(|mut lyr| {
         let mut queries: Vec<String> = vec![];
 
-        let cols = lyr.defn()
+        let cols = lyr
+            .defn()
             .fields()
             .map(|field| {
                 return format!("\"{}\"", field.name());
@@ -100,8 +102,9 @@ pub async fn generic_to_postgis_layer(
             .collect::<Vec<String>>();
 
         let mut i = 0;
-        lyr.features().for_each(| feature | {
-            let values = feature.fields()
+        lyr.features().for_each(|feature| {
+            let values = feature
+                .fields()
                 .filter(|field| field.0 != "geom")
                 .map(|field| {
                     return match field.1 {
@@ -110,12 +113,34 @@ pub async fn generic_to_postgis_layer(
                         Some(gdal::vector::FieldValue::DateValue(val)) => format!("\'{}\'", val),
                         Some(gdal::vector::FieldValue::RealValue(val)) => format!("{}", val),
                         Some(gdal::vector::FieldValue::Integer64Value(val)) => format!("{}", val),
-                        Some(gdal::vector::FieldValue::Integer64ListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
-                        Some(gdal::vector::FieldValue::IntegerListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
-                        Some(gdal::vector::FieldValue::RealListValue(val)) => format!("\'{}\'", val.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", ")),
-                        Some(gdal::vector::FieldValue::DateTimeValue(val)) => format!("\'{}\'", val),
-                        Some(gdal::vector::FieldValue::StringListValue(val)) => format!("\'{}\'", val.join(", ")),
-                        None => "NULL".to_string()
+                        Some(gdal::vector::FieldValue::Integer64ListValue(val)) => format!(
+                            "\'{}\'",
+                            val.iter()
+                                .map(|v| v.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        ),
+                        Some(gdal::vector::FieldValue::IntegerListValue(val)) => format!(
+                            "\'{}\'",
+                            val.iter()
+                                .map(|v| v.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        ),
+                        Some(gdal::vector::FieldValue::RealListValue(val)) => format!(
+                            "\'{}\'",
+                            val.iter()
+                                .map(|v| v.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        ),
+                        Some(gdal::vector::FieldValue::DateTimeValue(val)) => {
+                            format!("\'{}\'", val)
+                        }
+                        Some(gdal::vector::FieldValue::StringListValue(val)) => {
+                            format!("\'{}\'", val.join(", "))
+                        }
+                        None => "NULL".to_string(),
                     };
                 })
                 .collect::<Vec<String>>()
@@ -136,7 +161,10 @@ pub async fn generic_to_postgis_layer(
             match insert_result {
                 Ok(_) => (),
                 Err(err) => {
-                    println!("ERROR! Failed to load raw data into database table: {}", err);
+                    println!(
+                        "ERROR! Failed to load raw data into database table: {}",
+                        err
+                    );
                 }
             }
         });
@@ -148,51 +176,47 @@ pub async fn generic_to_postgis_layer(
     );
 }
 
-pub async fn generic_to_gpkg(dataset_name: &str) -> Result<Vec<String>, ()> {
+pub async fn generic_to_gpkg(dataset: Dataset) -> Result<Vec<String>, ()> {
     let mut gpkgs = vec![];
 
-    match Dataset::open(dataset_name) { 
-        Ok(dataset) => {
-            let driver = DriverManager::get_driver_by_name("GPKG").unwrap();
-            for mut layer in dataset.layers() {
-                let name = layer.name();
-                let long_name = format!("public.{}", name);
-                let mut gpkg_dataset = driver.create_vector_only(format!("/tmp/tigre/{}.gpkg", long_name)).unwrap();
+    let driver = DriverManager::get_driver_by_name("GPKG").unwrap();
+    for mut layer in dataset.layers() {
+        let name = layer.name();
+        let long_name = format!("public.{}", name);
+        let mut gpkg_dataset = driver
+            .create_vector_only(format!("/tmp/tigre/{}.gpkg", long_name))
+            .unwrap();
 
-                let layer_srs = SpatialRef::from_epsg(4326).unwrap();
+        let layer_srs = SpatialRef::from_epsg(4326).unwrap();
 
-                let layer_geom = match layer.features().collect::<Vec<_>>().first() {
-                    Some(layer_geom) => layer_geom.geometry().unwrap().geometry_type(),
-                    None => {
-                        panic!("ERROR! Layer '{}' has no features.", long_name);
-                    }
-                };
-
-                let layer_options = LayerOptions {
-                    name: name.as_str(),
-                    srs: Some(&layer_srs),
-                    ty: layer_geom,
-                    options: Some(&["GEOMETRY_NAME=geom", "FID=fid"]),
-                };
-                let mut gpkg_layer = gpkg_dataset.create_layer(layer_options).unwrap();
-
-                for feature in layer.features() {
-                    gpkg_layer.create_feature(feature.geometry().unwrap().clone()).unwrap();
-                }
-
-                gpkgs.push(format!("/tmp/tigre/{}.gpkg", long_name));
+        let layer_geom = match layer.features().collect::<Vec<_>>().first() {
+            Some(layer_geom) => layer_geom.geometry().unwrap().geometry_type(),
+            None => {
+                panic!("ERROR! Layer '{}' has no features.", long_name);
             }
-        },
-        Err(err) => panic!("Failed to open database: {}", err)
+        };
+
+        let layer_options = LayerOptions {
+            name: name.as_str(),
+            srs: Some(&layer_srs),
+            ty: layer_geom,
+            options: Some(&["GEOMETRY_NAME=geom", "FID=fid"]),
+        };
+        let mut gpkg_layer = gpkg_dataset.create_layer(layer_options).unwrap();
+
+        for feature in layer.features() {
+            gpkg_layer
+                .create_feature(feature.geometry().unwrap().clone())
+                .unwrap();
+        }
+
+        gpkgs.push(format!("/tmp/tigre/{}.gpkg", long_name));
     }
+
     Ok(gpkgs)
 }
 
-pub async fn postgis_layer_to_gpkg(
-    name: &str,
-    schema: &str,
-    gdal_pgsql_connection: String
-) {
+pub async fn postgis_layer_to_gpkg(name: &str, schema: &str, gdal_pgsql_connection: String) {
     let long_name = format!("{}.{}", schema, name);
 
     std::env::set_var("GDAL_SKIP", "GNMFile,GNMDatabase,PostGISRaster"); // This forces GDAL to use the PostgreSQL Driver
@@ -200,7 +224,9 @@ pub async fn postgis_layer_to_gpkg(
     let mut postgis_layer = postgis_dataset.layer_by_name(name).unwrap();
 
     let driver = DriverManager::get_driver_by_name("GPKG").unwrap();
-    let mut gpkg_dataset = driver.create_vector_only(format!("/tmp/tigre/{}.gpkg", long_name)).unwrap();
+    let mut gpkg_dataset = driver
+        .create_vector_only(format!("/tmp/tigre/{}.gpkg", long_name))
+        .unwrap();
 
     let layer_srs = SpatialRef::from_epsg(4326).unwrap();
 
@@ -220,6 +246,8 @@ pub async fn postgis_layer_to_gpkg(
     let mut gpkg_layer = gpkg_dataset.create_layer(layer_options).unwrap();
 
     for feature in postgis_layer.features() {
-        gpkg_layer.create_feature(feature.geometry().unwrap().clone()).unwrap();
+        gpkg_layer
+            .create_feature(feature.geometry().unwrap().clone())
+            .unwrap();
     }
 }
