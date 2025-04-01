@@ -1,6 +1,41 @@
 use gdal::spatial_ref::SpatialRef;
 use gdal::vector::{Geometry, LayerAccess, LayerOptions};
 use gdal::{Dataset, DriverManager};
+use geozero::geojson::GeoJson;
+use geozero::ToSvg;
+use std::fs::File;
+use std::io::Write;
+
+pub async fn generic_to_svg(dataset: Dataset) -> Result<(), String> {
+    for mut layer in dataset.layers() {
+        let mut svg_file = File::create(format!("/tmp/tigre/{}.svg", layer.name())).map_err(|e| e.to_string())?;
+        writeln!(svg_file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+            .map_err(|e| e.to_string())?;
+        writeln!(
+            svg_file,
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 1000\">"
+        )
+        .map_err(|e| e.to_string())?;
+
+        for feature in layer.features() {
+            if let Some(geometry) = feature.geometry() {
+                let geojson_str = geometry.json().map_err(|e| e.to_string())?;
+                let geojson = GeoJson(&geojson_str);
+                let mut svg_path = geojson.to_svg().map_err(|e| e.to_string())?;
+                svg_path = svg_path.replace("<path d=", "<path style=\"fill:#cccccc;stroke:#000000;stroke-width:1\" d=");
+
+                writeln!(
+                    svg_file,
+                    "{}",
+                    svg_path
+                ).map_err(|e| e.to_string())?;
+            }
+        }
+        writeln!(svg_file, "</svg>").map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
 
 pub async fn generic_to_postgis_layer(
     dataset: Dataset,

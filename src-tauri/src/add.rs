@@ -2,7 +2,7 @@
 use crate::appstate::AppState;
 use crate::output::Output;
 use crate::db::PGConnection;
-use crate::gdal_utils::{generic_to_postgis_layer, generic_to_gpkg};
+use crate::gdal_utils::{generic_to_postgis_layer, generic_to_gpkg, generic_to_svg};
 use postgres::{Client, NoTls};
 use std::collections::HashMap;
 use std::fs;
@@ -103,8 +103,11 @@ pub async fn add_layer(
         Dataset::open(Path::new(dataset_path.as_str())).unwrap(),  // TODO: I hate this. I want to use a reference, but I can't send a reference to a dataset between threads.
         pgsql_client,
         &name,
-    )
-    .await;
+    ).await;
+
+    generic_to_svg(
+        Dataset::open(Path::new(dataset_path.as_str())).unwrap(),  // TODO: I hate this. I want to use a reference, but I can't send a reference to a dataset between threads.
+    ).await;
 
     output.results.push(format!("Done."));
     let _ = state.app_handle.emit("loading", 0);

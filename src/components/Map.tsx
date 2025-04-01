@@ -112,6 +112,18 @@ function Map() {
                 detectRetina: false
             }).addTo(map.current!);
 
+            L.tileLayer("http://localhost:8081/map/us_states/{z}/{x}/{y}.png", {
+                maxZoom: 20,
+                tileSize: 512,
+                detectRetina: false,
+            }).addTo(map.current!);
+
+            L.tileLayer("http://localhost:8081/map/willamette_river/{z}/{x}/{y}.png", {
+                maxZoom: 20,
+                tileSize: 512,
+                detectRetina: false,
+            }).addTo(map.current!);
+
             setRedrawing(true);
         }
 
