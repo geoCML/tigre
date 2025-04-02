@@ -112,6 +112,12 @@ function Map() {
                 detectRetina: false
             }).addTo(map.current!);
 
+            L.tileLayer("http://localhost:3001/map/us_states/{z}/{x}/{y}.png", {
+                maxZoom: 20,
+                detectRetina: false,
+                tileSize: 128,
+            }).addTo(map.current!);
+
             setRedrawing(true);
         }
 

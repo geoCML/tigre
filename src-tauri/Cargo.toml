@@ -42,3 +42,4 @@ rusqlite = { version = "0.34.0", features = ["load_extension", "bundled"] }
 geozero = { version = "0.14.0", features = ["with-wkb", "with-svg"] }
 hex = "0.4.3"
 actix-web = "4.10.2"
+resvg = "0.45.0"

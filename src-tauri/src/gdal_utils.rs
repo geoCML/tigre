@@ -7,38 +7,63 @@ use std::fs::File;
 use std::io::Write;
 
 pub async fn generic_to_svg(dataset: Dataset) -> Result<(), String> {
-    // Create SVG file with header
-
+    // Create a spatial reference for Web Mercator
+    let target_srs = SpatialRef::from_epsg(3857).unwrap();
+    
     for mut layer in dataset.layers() {
         let mut svg_file = File::create(format!("/tmp/tigre/{}.svg", layer.name())).map_err(|e| e.to_string())?;
         writeln!(svg_file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
             .map_err(|e| e.to_string())?;
-        writeln!(
-            svg_file,
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 1000\">"
-        )
-        .map_err(|e| e.to_string())?;
+
+        // Calculate bounds of all geometries after reprojection
+        let mut x_min = f64::MAX;
+        let mut y_min = f64::MAX;
+        let mut x_max = f64::MIN;
+        let mut y_max = f64::MIN;
+        let mut svg_paths = vec![];
 
         for feature in layer.features() {
             if let Some(geometry) = feature.geometry() {
-                // Convert GDAL geometry to GeoJSON string
-                let geojson_str = geometry.json().map_err(|e| e.to_string())?;
+                // Clone and reproject the geometry to Web Mercator
+                let mut reprojected_geom = geometry.clone();
 
-                // Parse GeoJSON string to GeoJson struct that implements GeozeroGeometry
+                match reprojected_geom.spatial_ref() {
+                    Some(_srs) => {
+                        reprojected_geom.transform_to(&target_srs).map_err(|e| e.to_string())?;
+                    }
+                    None => {
+                        reprojected_geom.set_spatial_ref(target_srs.clone());
+                    }
+                }
+                
+                let geojson_str = reprojected_geom.json().map_err(|e| e.to_string())?;
                 let geojson = GeoJson(&geojson_str);
+                let mut svg_path = geojson.to_svg().map_err(|e| e.to_string())?;
+                svg_path = svg_path.replace("<path d=", "<path style=\"fill:#cccccc;stroke:#000000;stroke-width:0.01\" d=");
 
-                // Convert to SVG path data
-                let svg_path = geojson.to_svg().map_err(|e| e.to_string())?;
+                let envelope = reprojected_geom.envelope();
+                x_min = x_min.min(envelope.MinX);
+                y_min = y_min.min(envelope.MinY);
+                x_max = x_max.max(envelope.MaxX);
+                y_max = y_max.max(envelope.MaxY);
 
-                // Write as path element to SVG file
-                writeln!(
-                    svg_file,
-                    "{}",
-                    svg_path
-                ).map_err(|e| e.to_string())?;
+                svg_paths.push(svg_path);
             }
         }
-        writeln!(svg_file, "</svg>").map_err(|e| e.to_string())?;
+        writeln!(
+            svg_file,
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{} {} {} {}\">",
+            x_min, y_min, x_max - x_min, y_max - y_min
+        ).map_err(|e| e.to_string())?;
+
+        svg_paths.iter().for_each(|path| {
+            let _ = writeln!(svg_file, "{}", path).map_err(|e| e.to_string());
+        });
+
+        writeln!(
+            svg_file,
+            "</svg>"
+        ).map_err(|e| e.to_string())?;
     }
 
     Ok(())

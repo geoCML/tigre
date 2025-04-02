@@ -8,7 +8,9 @@ pub mod tools;
 pub mod gdal_utils;
 pub mod symbology;
 pub mod hytigre;
+pub mod tile_server;
 
+use crate::tile_server::start_tile_server;
 use crate::appstate::AppState;
 use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, get_layer_symbology, PGConnection};
 use crate::repl::{eval, read};
@@ -16,10 +18,15 @@ use postgres::{Client, NoTls};
 use std::string::String;
 use tauri::Manager;
 use tokio::sync::Mutex;
+use tauri::async_runtime::spawn;
 
 // TAURI STUFF
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
+    let _ = spawn(async move {
+        start_tile_server().await.unwrap().await
+    });
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
