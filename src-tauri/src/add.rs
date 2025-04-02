@@ -87,26 +87,16 @@ pub async fn add_layer(
     let _ = fs::create_dir("/tmp/tigre");
     let _ = state.app_handle.emit("loading", 85);
 
-    let _ = match generic_to_gpkg(dataset).await {
-        Ok(_) => (),
-        Err(_) => {
-            output
-                .errors
-                .push("ERROR! Failed to write layer to gpkg.".to_string());
-            let _ = state.app_handle.emit("loading", 0);
-            return Ok(output);
-        }
-    };
+    generic_to_svg(
+        Dataset::open(Path::new(dataset_path.as_str())).unwrap(),  // TODO: I hate this. I want to use a reference, but I can't send a reference to a dataset between threads.
+    ).await;
+
     let _ = state.app_handle.emit("add-vector-layer", [name.clone(), "public".to_string()]);
 
     generic_to_postgis_layer(
         Dataset::open(Path::new(dataset_path.as_str())).unwrap(),  // TODO: I hate this. I want to use a reference, but I can't send a reference to a dataset between threads.
         pgsql_client,
         &name,
-    ).await;
-
-    generic_to_svg(
-        Dataset::open(Path::new(dataset_path.as_str())).unwrap(),  // TODO: I hate this. I want to use a reference, but I can't send a reference to a dataset between threads.
     ).await;
 
     output.results.push(format!("Done."));

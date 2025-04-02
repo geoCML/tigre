@@ -124,7 +124,7 @@ pub async fn start_server(app_handle: tauri::AppHandle) -> std::io::Result<actix
             .route("/inspect", web::get().to(inspect))
             .route("/inspect-location", web::get().to(inspect_location))
         )
-        .bind(("127.0.0.1", 8080))?
+        .bind(("127.0.0.1", 3000))?
         .run();
 
     Ok(server) 

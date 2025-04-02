@@ -8,7 +8,9 @@ pub mod tools;
 pub mod gdal_utils;
 pub mod symbology;
 pub mod hytigre;
+pub mod tile_server;
 
+use crate::tile_server::map;
 use crate::appstate::AppState;
 use crate::db::{get_as_json, get_as_wkt, get_as_json_gpkg, get_layer_symbology, PGConnection};
 use crate::repl::{eval, read};
@@ -40,7 +42,8 @@ pub async fn run() {
             get_as_json,
             get_as_wkt,
             get_as_json_gpkg,
-            get_layer_symbology
+            get_layer_symbology,
+            map
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

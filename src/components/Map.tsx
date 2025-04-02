@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import LayerPaneItem from "./LayerPaneItem";
-import L from "leaflet";
+import L, { bounds } from "leaflet";
 import TableView from "./TableView";
 
 function Map() {
@@ -40,8 +40,6 @@ function Map() {
 
         emit("loading", 75);
 
-        const geomPromises = []
-
         if (Object.keys(vectorLayers).length === 0) {
             setRedrawing(false);
             emit("loading", 0);
@@ -57,17 +55,20 @@ function Map() {
             if (!vectorLayers[lyr].layer.visible)
                 continue;
 
-            geomPromises.push(invoke<string[]>("get_as_json_gpkg", {
-                table: vectorLayers[lyr].layer.name,
-                schema: vectorLayers[lyr].layer.schema,
-            }).then((result) => {
-                result.forEach((geom) => {
-                    L.geoJson(JSON.parse(geom), {
-                        style: vectorLayers[lyr].layer.symbology
-                    }).addTo(map.current!);
-                });
-            }));
-        }
+            invoke<string>("map", {
+                layer: vectorLayers[lyr].layer.name
+            }).then((data) => {
+                const svg = new DOMParser().parseFromString(data, "image/svg+xml");
+                const bounds = svg.getElementById(vectorLayers[lyr].layer.name)!.getAttribute('data-bounds')!.split(' ').map(Number);
+                const url = URL.createObjectURL(new Blob([data], { type: "image/svg+xml" }));
+
+                L.imageOverlay(url,
+                    [[bounds[1], bounds[0]], [bounds[3], bounds[2]]]
+                ).addTo(map.current!);
+
+                URL.revokeObjectURL(url);
+            });
+       }
 
         map.current.removeEventListener("click");
         map.current.on("click", (event) => {
@@ -79,10 +80,8 @@ function Map() {
                 });
         }, { once: true });
 
-        Promise.all(geomPromises).then(() => {
-            setRedrawing(false);
-            emit("loading", 0);
-        });
+        setRedrawing(false);
+        emit("loading", 0);
     }
 
     useEffect(() => {
@@ -97,10 +96,11 @@ function Map() {
     useEffect(() => {
         if (!map.current) {
             map.current = L.map("map", {
-                renderer: new L.Canvas(),
+                renderer: new L.SVG(),
                 fadeAnimation: false,
                 zoomAnimation: true,
-                zoomSnap: 0.85
+                zoomSnap: 0.85,
+                crs: L.CRS.EPSG3857
             });
 
             map.current!.setView([0, 0], 2);
@@ -110,6 +110,10 @@ function Map() {
                 subdomains: 'abcd',
                 maxZoom: 20,
                 detectRetina: false
+            }).addTo(map.current!);
+
+            L.tileLayer("http://localhost:8080/tile/{z}/{x}/{y}.png", {
+                maxZoom: 19,
             }).addTo(map.current!);
 
             setRedrawing(true);
